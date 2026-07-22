@@ -4,7 +4,12 @@ const slotSchema = new mongoose.Schema({
   slotNumber: { type: Number, required: true },
   trade: { type: String, required: true },
   assignedEmployee: { type: mongoose.Schema.Types.ObjectId, ref: 'Employee', default: null },
-  status: { type: String, enum: ['Unassigned', 'Reserved', 'Mobilized'], default: 'Unassigned' },
+status: { 
+    type: String, 
+    enum: ['UNASSIGNED', 'RESERVED', 'BOOKED', 'MOBILIZED'], 
+    default: 'UNASSIGNED' 
+  },
+  
   mobDate: { type: Date },
   demobDate: { type: Date }
 });

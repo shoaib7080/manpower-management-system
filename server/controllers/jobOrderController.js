@@ -1,7 +1,7 @@
-import JobOrder from '../models/JobOrder.js';
-import Employee from '../models/Employee.js';
-import AuditLog from '../models/AuditLog.js';
 import { EMPLOYEE_STATUS, ROLE_LEVELS } from '../config/constants.js';
+import AuditLog from '../models/AuditLog.js';
+import Employee from '../models/Employee.js';
+import JobOrder from '../models/JobOrder.js';
 
 // Helper: Calculate default 90-day demobilization date
 const calculate90DayDemob = (startDate) => {
@@ -34,7 +34,7 @@ export const createJobOrder = async (req, res) => {
           slotNumber: i,
           trade: reqItem.trade,
           assignedEmployee: null,
-          status: 'Unassigned',
+          status: 'UNASSIGNED',
           mobDate: null,
           demobDate: null
         });
@@ -124,6 +124,84 @@ export const getSlotSuggestions = async (req, res) => {
   }
 };
 
+// @desc    Advance worker through pipeline (RESERVED -> BOOKED -> MOBILIZED)
+// @route   PUT /api/job-orders/:id/update-slot-pipeline
+// @access  Protected
+export const updateSlotPipeline = async (req, res) => {
+  try {
+    const { id: jobOrderId } = req.params;
+    const { slotId, targetStatus, reasonForChange, authorizedBy } = req.body;
+
+    // Enforce mandatory audit inputs
+    if (!reasonForChange || !authorizedBy) {
+      return res.status(400).json({ 
+        message: 'Audit Error: "reasonForChange" and "authorizedBy" are strictly required.' 
+      });
+    }
+
+    const jobOrder = await JobOrder.findById(jobOrderId);
+    if (!jobOrder) return res.status(404).json({ message: 'Job Order not found.' });
+
+    const slot = jobOrder.slots.id(slotId);
+    if (!slot || !slot.assignedEmployee) {
+      return res.status(400).json({ message: 'Target slot is empty or invalid.' });
+    }
+
+    const employee = await Employee.findById(slot.assignedEmployee);
+    if (!employee) return res.status(404).json({ message: 'Assigned employee not found.' });
+
+    const currentStatus = employee.status;
+
+    // Hard-Lock Security Guardrail: Modifying BOOKED or MOBILIZED requires Level 1 Admin
+    if (
+      (currentStatus === EMPLOYEE_STATUS.BOOKED || currentStatus === EMPLOYEE_STATUS.MOBILIZED) &&
+      req.user.level > ROLE_LEVELS.ADMIN
+    ) {
+      return res.status(403).json({
+        message: `Hard Lock Active: Worker is ${currentStatus}. Changes require Level 1 Admin authorization.`
+      });
+    }
+
+    // Update Statuses
+    slot.status = targetStatus;
+    employee.status = targetStatus;
+
+    if (targetStatus === EMPLOYEE_STATUS.MOBILIZED) {
+      const mobDate = new Date();
+      const demobDate = new Date();
+      demobDate.setDate(mobDate.getDate() + 90);
+
+      slot.mobDate = mobDate;
+      slot.demobDate = demobDate;
+      employee.currentAssignment.mobDate = mobDate;
+      employee.currentAssignment.targetDemobDate = demobDate;
+    }
+
+    // Commit Audit Trail
+    const auditEntry = new AuditLog({
+      employeeId: employee._id,
+      employeeName: employee.name,
+      previousStatus: currentStatus,
+      newStatus: targetStatus,
+      previousSite: jobOrder.siteName,
+      newSite: jobOrder.siteName,
+      reasonForChange: reasonForChange,
+      authorizedBy: authorizedBy,
+      updatedByUserId: req.user._id
+    });
+
+    await Promise.all([jobOrder.save(), employee.save(), auditEntry.save()]);
+
+    res.status(200).json({
+      message: `Worker ${employee.name} updated to ${targetStatus}.`,
+      slot,
+      employee
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Pipeline transition failed', error: error.message });
+  }
+};
+
 // @desc    Assign Employee to Slot with ENFORCED Audit Verification
 // @route   PUT /api/job-orders/:id/assign-slot
 // @access  Protected (Level 2 or Level 1)
@@ -169,7 +247,7 @@ export const assignEmployeeToSlot = async (req, res) => {
 
     // 3. Update Slot Status
     slot.assignedEmployee = employee._id;
-    slot.status = 'Mobilized';
+    slot.status = 'RESERVED';
     slot.mobDate = actualMobDate;
     slot.demobDate = actualDemobDate;
 
@@ -231,11 +309,11 @@ export const releaseEmployeeFromSlot = async (req, res) => {
 
     const employee = await Employee.findById(slot.assignedEmployee);
     const previousSite = jobOrder.siteName;
-    const previousStatus = employee ? employee.status : 'Mobilized';
+    const previousStatus = employee ? employee.status : EMPLOYEE_STATUS.MOBILIZED;
 
     // Clear Slot
     slot.assignedEmployee = null;
-    slot.status = 'Unassigned';
+    slot.status = 'UNASSIGNED';
     slot.mobDate = null;
     slot.demobDate = null;
 

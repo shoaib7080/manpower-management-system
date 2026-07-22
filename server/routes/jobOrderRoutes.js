@@ -1,13 +1,14 @@
 import express from 'express';
-import { protect, requireLevel } from '../middleware/authMiddleware.js';
 import { ROLE_LEVELS } from '../config/constants.js';
 import {
+  assignEmployeeToSlot,
   createJobOrder,
   getJobOrders,
   getSlotSuggestions,
-  assignEmployeeToSlot,
-  releaseEmployeeFromSlot
+  releaseEmployeeFromSlot,
+  updateSlotPipeline
 } from '../controllers/jobOrderController.js';
+import { protect, requireLevel } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
@@ -21,6 +22,9 @@ router.get('/suggest', getSlotSuggestions);
 
 // POST /api/job-orders - Create new Job Order (Level 2 Engineer or Level 1 Admin)
 router.post('/', requireLevel(ROLE_LEVELS.PROJECT_ENGINEER), createJobOrder);
+
+// PUT /api/job-orders/:id/update-slot-pipeline - Update slot pipeline with mandatory audit check
+router.put('/:id/update-slot-pipeline', requireLevel(ROLE_LEVELS.PROJECT_ENGINEER), updateSlotPipeline);
 
 // PUT /api/job-orders/:id/assign-slot - Assign worker to slot with mandatory audit check
 router.put('/:id/assign-slot', requireLevel(ROLE_LEVELS.PROJECT_ENGINEER), assignEmployeeToSlot);

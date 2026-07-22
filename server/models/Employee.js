@@ -1,14 +1,10 @@
 import mongoose from 'mongoose';
+import { EMPLOYEE_STATUS, TRADES } from '../config/constants.js';
 
 const employeeSchema = new mongoose.Schema({
   employeeId: { type: String, required: true, unique: true, index: true },
   name: { type: String, required: true },
-  trade: { 
-    type: String, 
-    required: true, 
-    enum: ['Supervisor', 'Foreman', 'Fabricator', 'Welder', 'Fitter', 'Rigger', 'Helper', 'Other'],
-    index: true 
-  },
+  trade: { type: String, required: true, enum: TRADES, index: true },
   dob: { type: Date },
   emiratesId: { type: String, unique: true, sparse: true },
   passportNumber: { type: String },
@@ -24,8 +20,8 @@ const employeeSchema = new mongoose.Schema({
   // Operational Status
   status: { 
     type: String, 
-    enum: ['Available', 'Reserved', 'Mobilized', 'Vacation', 'Halted'], 
-    default: 'Available',
+    enum: Object.values(EMPLOYEE_STATUS),
+    default: EMPLOYEE_STATUS.AVAILABLE,
     index: true 
   },
 

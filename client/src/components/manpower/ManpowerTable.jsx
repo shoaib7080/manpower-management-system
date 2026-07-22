@@ -1,5 +1,4 @@
-import React from 'react';
-import { ShieldCheck, ShieldAlert, ShieldX } from 'lucide-react';
+import { ShieldAlert, ShieldCheck, ShieldX } from 'lucide-react';
 
 export default function ManpowerTable({ employees, onSelectWorker }) {
   const getTrainingBadge = (expiryDate) => {
@@ -30,12 +29,13 @@ export default function ManpowerTable({ employees, onSelectWorker }) {
   };
 
   const getStatusBadge = (status) => {
-    const styles = {
-      Available: 'bg-green-100 text-green-800 border-green-300',
-      Mobilized: 'bg-blue-100 text-blue-800 border-blue-300',
-      Reserved: 'bg-yellow-100 text-yellow-800 border-yellow-300',
-      Halted: 'bg-red-100 text-red-800 border-red-300',
-    };
+const styles = {
+  AVAILABLE: 'bg-green-100 text-green-800 border-green-300',
+  MOBILIZED: 'bg-blue-100 text-blue-800 border-blue-300',
+  RESERVED: 'bg-yellow-100 text-yellow-800 border-yellow-300',
+  HALTED: 'bg-red-100 text-red-800 border-red-300',
+  VACATION: 'bg-purple-100 text-purple-800 border-purple-300',
+};
     return (
       <span className={`text-xs px-2 py-0.5 border font-medium rounded ${styles[status] || 'bg-slate-100'}`}>
         {status}
