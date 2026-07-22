@@ -1,0 +1,273 @@
+import JobOrder from '../models/JobOrder.js';
+import Employee from '../models/Employee.js';
+import AuditLog from '../models/AuditLog.js';
+import { EMPLOYEE_STATUS, ROLE_LEVELS } from '../config/constants.js';
+
+// Helper: Calculate default 90-day demobilization date
+const calculate90DayDemob = (startDate) => {
+  const date = new Date(startDate);
+  date.setDate(date.getDate() + 90);
+  return date;
+};
+
+// @desc    Create a new Job Order with auto-generated empty trade slots
+// @route   POST /api/job-orders
+// @access  Protected (Level 2 Engineer or Level 1 Admin)
+export const createJobOrder = async (req, res) => {
+  try {
+    const { jobOrderNumber, siteName, clientCategory, projectEngineer, startDate, requirements } = req.body;
+
+    // Check duplicate Job Order number
+    const existingOrder = await JobOrder.findOne({ jobOrderNumber });
+    if (existingOrder) {
+      return res.status(400).json({ message: 'Job Order Number already exists.' });
+    }
+
+    const start = new Date(startDate);
+    const targetDemobDate = calculate90DayDemob(start);
+
+    // Auto-generate empty slots based on requirement quantities
+    const generatedSlots = [];
+    requirements.forEach(reqItem => {
+      for (let i = 1; i <= reqItem.requiredQty; i++) {
+        generatedSlots.push({
+          slotNumber: i,
+          trade: reqItem.trade,
+          assignedEmployee: null,
+          status: 'Unassigned',
+          mobDate: null,
+          demobDate: null
+        });
+      }
+    });
+
+    const jobOrder = new JobOrder({
+      jobOrderNumber,
+      siteName,
+      clientCategory,
+      projectEngineer,
+      startDate: start,
+      targetDemobDate,
+      requirements,
+      slots: generatedSlots,
+      status: 'Active'
+    });
+
+    await jobOrder.save();
+    res.status(201).json({ message: 'Job Order created successfully', data: jobOrder });
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to create Job Order', error: error.message });
+  }
+};
+
+// @desc    Get all Job Orders with populated employee details in slots
+// @route   GET /api/job-orders
+// @access  Protected
+export const getJobOrders = async (req, res) => {
+  try {
+    const { status, siteName } = req.query;
+    let query = {};
+
+    if (status) query.status = status;
+    if (siteName) query.siteName = { $regex: siteName, $options: 'i' };
+
+    const jobOrders = await JobOrder.find(query)
+      .populate('slots.assignedEmployee', 'employeeId name trade status trainings')
+      .sort({ createdAt: -1 });
+
+    res.status(200).json(jobOrders);
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching Job Orders', error: error.message });
+  }
+};
+
+// @desc    Auto-Suggestion Engine for Empty Trade Slots
+// @route   GET /api/job-orders/suggest
+// @access  Protected
+export const getSlotSuggestions = async (req, res) => {
+  try {
+    const { trade, clientCategory } = req.query;
+
+    if (!trade) {
+      return res.status(400).json({ message: 'Trade parameter is required for suggestions.' });
+    }
+
+    // Query AVAILABLE employees matching the exact trade
+    let query = {
+      trade: trade,
+      status: EMPLOYEE_STATUS.AVAILABLE
+    };
+
+    // If ADNOC Offshore, verify valid Sea Survival and H2S clearance
+    const now = new Date();
+    if (clientCategory === 'ADNOC Offshore') {
+      query['trainings.h2sExpiry'] = { $gt: now };
+      query['trainings.seaSurvivalExpiry'] = { $gt: now };
+      query['trainings.medicalExpiry'] = { $gt: now };
+    } else if (clientCategory === 'ADNOC Onshore') {
+      query['trainings.h2sExpiry'] = { $gt: now };
+      query['trainings.medicalExpiry'] = { $gt: now };
+    }
+
+    const availableCandidates = await Employee.find(query).select(
+      'employeeId name trade status trainings currentAssignment'
+    );
+
+    res.status(200).json({
+      trade,
+      clientCategory,
+      count: availableCandidates.length,
+      suggestions: availableCandidates
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Error running suggestion engine', error: error.message });
+  }
+};
+
+// @desc    Assign Employee to Slot with ENFORCED Audit Verification
+// @route   PUT /api/job-orders/:id/assign-slot
+// @access  Protected (Level 2 or Level 1)
+export const assignEmployeeToSlot = async (req, res) => {
+  try {
+    const { id: jobOrderId } = req.params;
+    const { slotId, employeeId, mobDate, targetDemobDate, reasonForChange, authorizedBy } = req.body;
+
+    // 1. STRICTION CHECK: Validate mandatory audit constraints
+    if (!reasonForChange || !authorizedBy) {
+      return res.status(400).json({ 
+        message: 'Audit Enforcement Error: "reasonForChange" and "authorizedBy" are strictly required.' 
+      });
+    }
+
+    const jobOrder = await JobOrder.findById(jobOrderId);
+    if (!jobOrder) {
+      return res.status(404).json({ message: 'Job Order not found.' });
+    }
+
+    const slot = jobOrder.slots.id(slotId);
+    if (!slot) {
+      return res.status(404).json({ message: 'Target trade slot not found.' });
+    }
+
+    const employee = await Employee.findById(employeeId);
+    if (!employee) {
+      return res.status(404).json({ message: 'Employee not found.' });
+    }
+
+    // 2. Prevent double-booking if employee is already mobilized/reserved elsewhere
+    if (employee.status === EMPLOYEE_STATUS.MOBILIZED && req.user.level > ROLE_LEVELS.ADMIN) {
+      return res.status(400).json({ 
+        message: `Employee ${employee.name} is currently MOBILIZED at ${employee.currentAssignment.siteName}. Admin override required.` 
+      });
+    }
+
+    const previousStatus = employee.status;
+    const previousSite = employee.currentAssignment?.siteName || 'Bench / Available';
+
+    const actualMobDate = mobDate ? new Date(mobDate) : new Date();
+    const actualDemobDate = targetDemobDate ? new Date(targetDemobDate) : calculate90DayDemob(actualMobDate);
+
+    // 3. Update Slot Status
+    slot.assignedEmployee = employee._id;
+    slot.status = 'Mobilized';
+    slot.mobDate = actualMobDate;
+    slot.demobDate = actualDemobDate;
+
+    // 4. Update Employee Status & Active Site Assignment
+    employee.status = EMPLOYEE_STATUS.MOBILIZED;
+    employee.currentAssignment = {
+      jobOrderId: jobOrder._id,
+      siteName: jobOrder.siteName,
+      mobDate: actualMobDate,
+      targetDemobDate: actualDemobDate
+    };
+
+    // 5. Commit Mandatory Audit Log
+    const auditEntry = new AuditLog({
+      employeeId: employee._id,
+      employeeName: employee.name,
+      previousStatus: previousStatus,
+      newStatus: EMPLOYEE_STATUS.MOBILIZED,
+      previousSite: previousSite,
+      newSite: jobOrder.siteName,
+      reasonForChange: reasonForChange,
+      authorizedBy: authorizedBy,
+      updatedByUserId: req.user._id
+    });
+
+    await Promise.all([jobOrder.save(), employee.save(), auditEntry.save()]);
+
+    res.status(200).json({
+      message: `Employee ${employee.name} assigned to ${jobOrder.siteName} successfully.`,
+      slot,
+      auditLog: auditEntry
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Slot assignment failed', error: error.message });
+  }
+};
+
+// @desc    Release / Demobilize Employee from Slot
+// @route   PUT /api/job-orders/:id/release-slot
+// @access  Protected
+export const releaseEmployeeFromSlot = async (req, res) => {
+  try {
+    const { id: jobOrderId } = req.params;
+    const { slotId, reasonForChange, authorizedBy, newStatus } = req.body;
+
+    if (!reasonForChange || !authorizedBy) {
+      return res.status(400).json({ 
+        message: 'Audit Enforcement Error: "reasonForChange" and "authorizedBy" are strictly required.' 
+      });
+    }
+
+    const jobOrder = await JobOrder.findById(jobOrderId);
+    if (!jobOrder) return res.status(404).json({ message: 'Job Order not found.' });
+
+    const slot = jobOrder.slots.id(slotId);
+    if (!slot || !slot.assignedEmployee) {
+      return res.status(400).json({ message: 'Slot is empty or invalid.' });
+    }
+
+    const employee = await Employee.findById(slot.assignedEmployee);
+    const previousSite = jobOrder.siteName;
+    const previousStatus = employee ? employee.status : 'Mobilized';
+
+    // Clear Slot
+    slot.assignedEmployee = null;
+    slot.status = 'Unassigned';
+    slot.mobDate = null;
+    slot.demobDate = null;
+
+    if (employee) {
+      const nextStatus = newStatus || EMPLOYEE_STATUS.AVAILABLE;
+      employee.status = nextStatus;
+      employee.currentAssignment = {
+        jobOrderId: null,
+        siteName: null,
+        mobDate: null,
+        targetDemobDate: null
+      };
+      await employee.save();
+
+      // Audit entry
+      const auditEntry = new AuditLog({
+        employeeId: employee._id,
+        employeeName: employee.name,
+        previousStatus: previousStatus,
+        newStatus: nextStatus,
+        previousSite: previousSite,
+        newSite: 'Bench / Released',
+        reasonForChange: reasonForChange,
+        authorizedBy: authorizedBy,
+        updatedByUserId: req.user._id
+      });
+      await auditEntry.save();
+    }
+
+    await jobOrder.save();
+    res.status(200).json({ message: 'Employee demobilized and slot cleared successfully.' });
+  } catch (error) {
+    res.status(500).json({ message: 'Demobilization failed', error: error.message });
+  }
+};
