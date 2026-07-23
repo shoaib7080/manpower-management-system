@@ -233,7 +233,10 @@ export const assignEmployeeToSlot = async (req, res) => {
     }
 
     // 2. Prevent double-booking if employee is already mobilized/reserved elsewhere
-    if (employee.status === EMPLOYEE_STATUS.MOBILIZED && req.user.level > ROLE_LEVELS.ADMIN) {
+    if (
+  (employee.status === EMPLOYEE_STATUS.MOBILIZED || employee.status === EMPLOYEE_STATUS.RESERVED) 
+  && req.user.level > ROLE_LEVELS.ADMIN
+) {
       return res.status(400).json({ 
         message: `Employee ${employee.name} is currently MOBILIZED at ${employee.currentAssignment.siteName}. Admin override required.` 
       });
@@ -252,7 +255,7 @@ export const assignEmployeeToSlot = async (req, res) => {
     slot.demobDate = actualDemobDate;
 
     // 4. Update Employee Status & Active Site Assignment
-    employee.status = EMPLOYEE_STATUS.MOBILIZED;
+    employee.status = EMPLOYEE_STATUS.RESERVED;
     employee.currentAssignment = {
       jobOrderId: jobOrder._id,
       siteName: jobOrder.siteName,
@@ -265,7 +268,7 @@ export const assignEmployeeToSlot = async (req, res) => {
       employeeId: employee._id,
       employeeName: employee.name,
       previousStatus: previousStatus,
-      newStatus: EMPLOYEE_STATUS.MOBILIZED,
+      newStatus: EMPLOYEE_STATUS.RESERVED,
       previousSite: previousSite,
       newSite: jobOrder.siteName,
       reasonForChange: reasonForChange,

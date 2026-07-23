@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
-import { assignSlot, fetchJobOrders, fetchSlotSuggestions, createJobOrder } from '../api/services';
+import { assignSlot, createJobOrder, fetchJobOrders, fetchSlotSuggestions } from '../api/services';
 import CreateJobOrderModal from '../components/jobOrders/CreateJobOrdersModal';
 import JobOrderCard from '../components/jobOrders/JobOrderCard';
 import AuditModal from '../components/manpower/AuditModal';
@@ -87,6 +87,7 @@ export default function JobOrdersPage() {
         <p className="text-sm text-slate-500">Loading Job Orders...</p>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {console.log('jobOrders value:', jobOrders, typeof jobOrders)}
           {jobOrders.map((jo) => (
             <JobOrderCard key={jo._id} jobOrder={jo} onOpenSuggestions={handleOpenSuggestions} />
           ))}

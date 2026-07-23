@@ -1,6 +1,6 @@
 import xlsx from 'xlsx';
-import Employee from '../models/Employee.js';
 import { EMPLOYEE_STATUS } from '../config/constants.js';
+import Employee from '../models/Employee.js';
 
 // Helper function to safely parse Excel serial dates or string dates
 const parseExcelDate = (excelValue) => {
@@ -13,24 +13,15 @@ const parseExcelDate = (excelValue) => {
   return isNaN(parsedDate.getTime()) ? null : parsedDate;
 };
 
-// @desc    Get all manpower with multi-role filters & training status flags
+// @desc    Get all manpower with multi-trade, status & training compliance filters
 // @route   GET /api/manpower
 // @access  Protected
 export const getEmployees = async (req, res) => {
   try {
-    const { trade, status, search } = req.query;
+    const { trade, status, compliance, search } = req.query;
     let query = {};
 
-    // Multi-role filtering
-    if (trade) {
-      const tradesArray = trade.split(',').map(t => t.trim());
-      query.trade = { $in: tradesArray };
-    }
-
-    if (status) {
-      query.status = status;
-    }
-
+    // 1. Search Query Filter
     if (search) {
       query.$or = [
         { name: { $regex: search, $options: 'i' } },
@@ -39,8 +30,71 @@ export const getEmployees = async (req, res) => {
       ];
     }
 
+    // 2. Trade Filter
+    if (trade) {
+      const tradesArray = trade.split(',').map(t => t.trim());
+      query.trade = { $in: tradesArray };
+    }
+
+    // 3. Deployment Status Filter (Using UPPERCASE Enums)
+    if (status) {
+      query.status = status.toUpperCase();
+    }
+
+    // 4. Training Compliance Filter Engine
+    const now = new Date();
+    const thirtyDaysFromNow = new Date();
+    thirtyDaysFromNow.setDate(now.getDate() + 30);
+
+    if (compliance === 'EXPIRED') {
+      // At least one clearance date is in the past
+      query.$or = [
+        { 'trainings.h2sExpiry': { $lt: now } },
+        { 'trainings.seaSurvivalExpiry': { $lt: now } },
+        { 'trainings.medicalExpiry': { $lt: now } },
+        { 'trainings.adnocInductionExpiry': { $lt: now } }
+      ];
+    } else if (compliance === 'EXPIRING_SOON') {
+      // Clearance expiring within 30 days
+      query.$or = [
+        { 'trainings.h2sExpiry': { $gte: now, $lte: thirtyDaysFromNow } },
+        { 'trainings.seaSurvivalExpiry': { $gte: now, $lte: thirtyDaysFromNow } },
+        { 'trainings.medicalExpiry': { $gte: now, $lte: thirtyDaysFromNow } },
+        { 'trainings.adnocInductionExpiry': { $gte: now, $lte: thirtyDaysFromNow } }
+      ];
+    } else if (compliance === 'INCOMPLETE') {
+      // Missing recorded training dates
+      query.$or = [
+        { 'trainings.h2sExpiry': null },
+        { 'trainings.seaSurvivalExpiry': null },
+        { 'trainings.medicalExpiry': null },
+        { 'trainings.adnocInductionExpiry': null }
+      ];
+    } else if (compliance === 'READY') {
+      // All clearances valid beyond 30 days
+      query['trainings.h2sExpiry'] = { $gt: thirtyDaysFromNow };
+      query['trainings.medicalExpiry'] = { $gt: thirtyDaysFromNow };
+    }
+
     const employees = await Employee.find(query).sort({ name: 1 });
-    res.status(200).json(employees);
+
+    // Calculate Summary Counter Metadata
+    const allEmployees = await Employee.find({});
+    const summary = {
+      total: allEmployees.length,
+      available: allEmployees.filter(e => e.status === EMPLOYEE_STATUS.AVAILABLE).length,
+      booked: allEmployees.filter(e => e.status === EMPLOYEE_STATUS.BOOKED).length,
+      mobilized: allEmployees.filter(e => e.status === EMPLOYEE_STATUS.MOBILIZED).length,
+      reserved: allEmployees.filter(e => e.status === EMPLOYEE_STATUS.RESERVED).length,
+      expiredTrainings: allEmployees.filter(e => {
+        const t = e.trainings || {};
+        return (t.h2sExpiry && new Date(t.h2sExpiry) < now) ||
+               (t.seaSurvivalExpiry && new Date(t.seaSurvivalExpiry) < now) ||
+               (t.medicalExpiry && new Date(t.medicalExpiry) < now);
+      }).length
+    };
+
+    res.status(200).json({ summary, employees });
   } catch (error) {
     res.status(500).json({ message: 'Error fetching employees', error: error.message });
   }
