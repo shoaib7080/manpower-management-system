@@ -1,148 +1,251 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
-import { assignSlot, createJobOrder, fetchJobOrders, fetchSlotSuggestions } from '../api/services';
+import { createJobOrder, fetchJobOrders } from '../api/services';
 import CreateJobOrderModal from '../components/jobOrders/CreateJobOrdersModal';
-import JobOrderCard from '../components/jobOrders/JobOrderCard';
-import AuditModal from '../components/manpower/AuditModal';
+import StatusBadge from '../components/StatusBadge';
+import useDashboardStore, { STAGES } from '../store/useDashboardStore';
 
 export default function JobOrdersPage() {
-  const queryClient = useQueryClient();
+  const qc = useQueryClient();
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
 
-  const [selectedSlot, setSelectedSlot] = useState(null);
-  const [selectedJobOrder, setSelectedJobOrder] = useState(null);
-  const [candidateToAssign, setCandidateToAssign] = useState(null);
-  const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
- const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-
-  // Fetch active site job orders
   const { data: jobOrders = [], isLoading } = useQuery({
     queryKey: ['jobOrders'],
-    queryFn: async () => {
-      const res = await fetchJobOrders();
-      return res.data;
-    },
+    queryFn: async () => { const res = await fetchJobOrders(); return res.data; },
   });
 
-  // Fetch candidate suggestions when slot selected
-  const { data: suggestionsData } = useQuery({
-    queryKey: ['suggestions', selectedSlot?.trade, selectedJobOrder?.clientCategory],
-    queryFn: async () => {
-      if (!selectedSlot) return null;
-      const res = await fetchSlotSuggestions({
-        trade: selectedSlot.trade,
-        clientCategory: selectedJobOrder.clientCategory,
-      });
-      return res.data;
-    },
-    enabled: !!selectedSlot,
-  });
-
-  // Allocation mutation
-  const assignMutation = useMutation({
-    mutationFn: (auditPayload) =>
-      assignSlot(selectedJobOrder._id, {
-        slotId: selectedSlot._id,
-        employeeId: candidateToAssign._id,
-        ...auditPayload,
-      }),
-    onSuccess: () => {
-      queryClient.invalidateQueries(['jobOrders']);
-      setIsAuditModalOpen(false);
-      setSelectedSlot(null);
-      setCandidateToAssign(null);
-    },
-  });
-
-    const createJobOrderMutation = useMutation({
+  const createMutation = useMutation({
     mutationFn: createJobOrder,
-    onSuccess: () => {
-      queryClient.invalidateQueries(['jobOrders']);
-      setIsCreateModalOpen(false);
-    },
+    onSuccess: () => { qc.invalidateQueries(['jobOrders']); setIsCreateOpen(false); },
   });
-
-  const handleOpenSuggestions = (jobOrder, slot) => {
-    setSelectedJobOrder(jobOrder);
-    setSelectedSlot(slot);
-  };
-
-  const handleSelectCandidate = (candidate) => {
-    setCandidateToAssign(candidate);
-    setIsAuditModalOpen(true);
-  };
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6">
-      <div className="flex justify-between items-center border-b border-slate-200 pb-4">
-        <h1 className="text-2xl font-bold text-slate-900">Job Order Site Fulfillment Matrix</h1>
-        <button
-          onClick={() => setIsCreateModalOpen(true)}
-          className="bg-slate-900 hover:bg-slate-800 text-white text-xs px-3 py-2 rounded font-medium flex items-center gap-2 transition-all"
-        >
-          + Create Job Order
-        </button>
+    <div>
+      <div className="topbar">
+        <div>
+          <h1>Job Order &amp; Site Fulfillment</h1>
+          <div className="sub">Expand any job order to manage trade slots and mobilise personnel.</div>
+        </div>
+        <div className="btn-row">
+          <button className="btn btn-primary" onClick={() => setIsCreateOpen(true)}>
+            + Create Job Order
+          </button>
+        </div>
       </div>
 
       {isLoading ? (
-        <p className="text-sm text-slate-500">Loading Job Orders...</p>
+        <div className="empty-state">Loading job orders…</div>
+      ) : jobOrders.length === 0 ? (
+        <div className="empty-state">No job orders found. Create one to get started.</div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {console.log('jobOrders value:', jobOrders, typeof jobOrders)}
-          {jobOrders.map((jo) => (
-            <JobOrderCard key={jo._id} jobOrder={jo} onOpenSuggestions={handleOpenSuggestions} />
-          ))}
+        <div className="jo-grid">
+          {jobOrders.map((jo) => <JobOrderCard key={jo._id} jo={jo} />)}
         </div>
       )}
 
-      {/* Suggestion Drawer/Panel */}
-      {selectedSlot && (
-        <div className="fixed inset-y-0 right-0 w-96 bg-white border-l border-slate-300 shadow-xl p-6 z-40 overflow-y-auto">
-          <div className="flex justify-between items-center mb-4 border-b pb-2">
-            <h3 className="font-bold text-slate-900">Available {selectedSlot.trade}s</h3>
-            <button onClick={() => setSelectedSlot(null)} className="text-xs text-slate-500 hover:underline">Close</button>
-          </div>
-
-          <p className="text-xs text-slate-600 mb-4">
-            Showing available workers matching clearances for <strong>{selectedJobOrder.clientCategory}</strong>.
-          </p>
-
-          <div className="space-y-3">
-            {suggestionsData?.suggestions?.length === 0 ? (
-              <p className="text-xs text-slate-400 italic">No available workers with valid clearances found.</p>
-            ) : (
-              suggestionsData?.suggestions?.map((cand) => (
-                <div key={cand._id} className="p-3 border border-slate-200 rounded flex justify-between items-center">
-                  <div>
-                    <h4 className="text-sm font-semibold text-slate-900">{cand.name}</h4>
-                    <p className="text-xs text-slate-500">ID: {cand.employeeId}</p>
-                  </div>
-                  <button
-                    onClick={() => handleSelectCandidate(cand)}
-                    className="bg-slate-900 text-white text-xs px-3 py-1 rounded font-medium hover:bg-slate-800"
-                  >
-                    Select
-                  </button>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Enforced Audit Modal */}
-      <AuditModal
-        isOpen={isAuditModalOpen}
-        onClose={() => setIsAuditModalOpen(false)}
-        onSubmit={(auditData) => assignMutation.mutate(auditData)}
-        workerName={candidateToAssign?.name}
-        targetSite={selectedJobOrder?.siteName}
-      />
-            <CreateJobOrderModal
-        isOpen={isCreateModalOpen}
-        onClose={() => setIsCreateModalOpen(false)}
-        onSubmit={(payload) => createJobOrderMutation.mutate(payload)}
-        isPending={createJobOrderMutation.isPending}
+      <CreateJobOrderModal
+        isOpen={isCreateOpen}
+        onClose={() => setIsCreateOpen(false)}
+        onSubmit={(payload) => createMutation.mutate(payload)}
+        isPending={createMutation.isPending}
       />
     </div>
   );
+}
+
+function JobOrderCard({ jo }) {
+  const [expanded, setExpanded] = useState(false);
+
+  const total = jo.slots.length;
+  const filled = jo.slots.filter((s) => s.status !== 'UNASSIGNED').length;
+  const mobilized = jo.slots.filter((s) => s.status === 'MOBILIZED').length;
+  const pct = total > 0 ? Math.round((filled / total) * 100) : 0;
+
+  // Group slots by trade for the expanded view
+  const byTrade = jo.slots.reduce((acc, slot, idx) => {
+    if (!acc[slot.trade]) acc[slot.trade] = [];
+    acc[slot.trade].push({ ...slot, _idx: idx });
+    return acc;
+  }, {});
+
+  return (
+    <div className="jo-card">
+      {/* ── Collapsed header — always visible ── */}
+      <div className="jo-card-head">
+        <div className="jo-head-top">
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div className="jo-id">{jo.jobOrderNumber}</div>
+            <div className="jo-title">{jo.siteName}</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 5, flexWrap: 'wrap' }}>
+              <span className="jo-client">{jo.clientCategory}</span>
+              <span style={{ fontSize: 11, color: 'var(--text-2)' }}>
+                Eng: {jo.projectEngineer}
+              </span>
+            </div>
+          </div>
+
+          {/* Right side: stats + toggle */}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8, flexShrink: 0 }}>
+            <div style={{ display: 'flex', gap: 6 }}>
+              <Pill color="var(--teal)" bg="var(--green-bg)" label={`${mobilized} Mobilized`} />
+              <Pill color="var(--text-2)" bg="var(--gray-bg)" label={`${total - filled} Open`} />
+            </div>
+            <button className="jo-toggle" onClick={() => setExpanded((v) => !v)}>
+              {expanded ? 'Hide Slots' : 'Manage Slots'}
+              <span className="chev">{expanded ? '▲' : '▼'}</span>
+            </button>
+          </div>
+        </div>
+
+        <div className="jo-dates">
+          <div>Mob: <b>{jo.startDate ? fmt(jo.startDate) : '—'}</b></div>
+          <div>Demob: <b>{jo.targetDemobDate ? fmt(jo.targetDemobDate) : '—'}</b></div>
+        </div>
+
+        <div className="progress-wrap">
+          <div className="progress-top">
+            <span>Team Fulfillment</span>
+            <span>{filled} / {total} filled ({pct}%)</span>
+          </div>
+          <div className="progress-bar">
+            <div className="progress-fill" style={{ width: `${pct}%` }} />
+          </div>
+        </div>
+      </div>
+
+      {/* ── Expanded slot section ── */}
+      {expanded && (
+        <div style={{ borderTop: '1px solid var(--line)' }}>
+          {Object.entries(byTrade).map(([trade, slots]) => (
+            <TradeGroup key={trade} trade={trade} slots={slots} joId={jo._id} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TradeGroup({ trade, slots, joId }) {
+  const filled = slots.filter((s) => s.status !== 'UNASSIGNED').length;
+
+  return (
+    <div style={{ borderBottom: '1px solid var(--line)' }}>
+      {/* Trade header row */}
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: '9px 16px', background: 'var(--paper)',
+      }}>
+        <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-2)', letterSpacing: '.03em' }}>
+          {trade.toUpperCase()}
+        </span>
+        <span style={{ fontSize: 11, color: 'var(--text-3)' }}>
+          {filled} / {slots.length} filled
+        </span>
+      </div>
+
+      {/* Slot cards for this trade */}
+      <div className="slot-grid" style={{ borderTop: 'none', marginTop: 0, paddingTop: 12 }}>
+        {slots.map((slot) => (
+          <Slot key={slot._id} joId={joId} slot={slot} slotIdx={slot._idx} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function Slot({ joId, slot, slotIdx }) {
+  const openDrawer = useDashboardStore((s) => s.openDrawer);
+  const requestAdvance = useDashboardStore((s) => s.requestAdvance);
+  const requestSwap = useDashboardStore((s) => s.requestSwap);
+
+  const emp = slot.assignedEmployee;
+  const isUnassigned = slot.status === 'UNASSIGNED';
+  const locked = slot.status === 'BOOKED' || slot.status === 'MOBILIZED';
+  const stageIdx = STAGES.indexOf(slot.status);
+
+  if (isUnassigned) {
+    return (
+      <div className="slot empty">
+        <div className="slot-top">
+          <div>
+            <div className="slot-trade">Slot {slot.slotNumber}</div>
+            <div className="slot-placeholder">Unassigned</div>
+          </div>
+          <StatusBadge status="AVAILABLE" />
+        </div>
+        <button className="btn-suggest" onClick={() => openDrawer(joId, slotIdx, slot._id)}>
+          ⚡ Auto-Suggest
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className={`slot${locked ? ' locked' : ''}`}>
+      <div className="slot-top">
+        <div>
+          <div className="slot-trade">Slot {slot.slotNumber}</div>
+          <div className="slot-worker">{emp?.name || '—'}</div>
+          {emp?.employeeId && (
+            <div className="mono" style={{ fontSize: 10.5, color: 'var(--text-3)', marginTop: 1 }}>
+              {emp.employeeId}
+            </div>
+          )}
+        </div>
+        <StatusBadge status={slot.status} />
+      </div>
+
+      <div>
+        <div className="stepper">
+          {STAGES.map((_, i) => (
+            <div key={i} className={`step${i < stageIdx ? ' done' : i === stageIdx ? ' current' : ''}`} />
+          ))}
+        </div>
+        <div className="stepper-labels">
+          {STAGES.map((st, i) => (
+            <span key={st} className={i === stageIdx ? 'active' : ''}>
+              {st[0]}{st.slice(1, 3).toLowerCase()}
+            </span>
+          ))}
+        </div>
+      </div>
+
+      <div className="slot-actions">
+        {stageIdx < STAGES.length - 1 ? (
+          <button
+            className="btn btn-outline btn-sm"
+            style={{ flex: 1 }}
+            onClick={() => requestAdvance(joId, slot._id, emp, slot.status)}
+          >
+            → {STAGES[stageIdx + 1]}
+          </button>
+        ) : (
+          <span className="lock-tag" style={{ flex: 1 }}>✓ Mobilized</span>
+        )}
+        <button
+          className="icon-btn"
+          title="Release worker"
+          onClick={() => requestSwap(joId, slot._id, emp, slot.status)}
+        >
+          ✕
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// Small inline pill for the card header stats
+function Pill({ color, bg, label }) {
+  return (
+    <span style={{
+      fontSize: 10.5, fontWeight: 600, color, background: bg,
+      padding: '2px 8px', borderRadius: 3,
+    }}>
+      {label}
+    </span>
+  );
+}
+
+function fmt(dateStr) {
+  return new Date(dateStr).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 }
