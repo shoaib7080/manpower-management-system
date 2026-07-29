@@ -1,51 +1,39 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRef, useState } from "react";
-import { uploadExcel } from "../../api/services";
+import { uploadJobOrderExcel } from "../../api/services";
 
 const REQUIRED_COLS = [
   {
-    col: "Employee ID",
-    alt: "EMP_ID  or  EmployeeNo",
-    req: true,
-    note: "Unique identifier — used for upsert",
+    col: "Job Order Number",
+    alt: "JO Number  or  JobOrderNo",
+    note: "Unique — duplicate JOs are skipped",
   },
-  { col: "Full Name", alt: "Name  or  Employee Name", req: true, note: "" },
+  { col: "Site Name", alt: "Site", note: "" },
   {
-    col: "Trade",
-    alt: "Designation",
-    req: false,
-    note: "Supervisor / Fabricator / Welder / Fitter / Rigger / Helper / Other",
+    col: "Client Category",
+    alt: "Client",
+    note: "ADNOC Onshore / ADNOC Offshore / Internal Production / Other",
+  },
+  {
+    col: "Start Date",
+    alt: "Mob Date",
+    note: "DD/MM/YYYY or Excel date serial",
   },
 ];
 
-const OPTIONAL_COLS = [
-  { col: "DOB", alt: "Date of Birth", note: "DD/MM/YYYY or Excel date serial" },
-  { col: "Emirates ID", alt: "", note: "UAE residents — 784-XXXX-XXXXXXX-X" },
-  { col: "Passport Number", alt: "", note: "Non-UAE residents" },
-  { col: "ADNOC Induction Expiry", alt: "", note: "Date format" },
-  { col: "H2S Training Expiry", alt: "H2S Expiry", note: "Date format" },
-  { col: "Medical Expiry", alt: "", note: "Date format" },
-  { col: "Sea Survival Expiry", alt: "", note: "Date format — offshore only" },
+const TRADE_COLS = [
   {
-    col: "HSE Passport Number",
-    alt: "HSE Passport No",
-    note: "Document number — gates mobilization",
-  },
-  {
-    col: "HSE Passport Expiry",
+    col: "Supervisor",
     alt: "",
-    note: "Date format — either number or expiry is sufficient",
+    note: "Number of Supervisor slots to generate",
   },
-  {
-    col: "CICPA Number",
-    alt: "CICPA Pass No  or  CICPA No",
-    note: "Document number — gates mobilization",
-  },
-  {
-    col: "CICPA Expiry",
-    alt: "CICPA Pass Expiry",
-    note: "Date format — either number or expiry is sufficient",
-  },
+  { col: "Foreman", alt: "", note: "" },
+  { col: "Fabricator", alt: "", note: "" },
+  { col: "Welder", alt: "", note: "" },
+  { col: "Fitter", alt: "", note: "" },
+  { col: "Rigger", alt: "", note: "" },
+  { col: "Helper", alt: "", note: "" },
+  { col: "Other", alt: "", note: "" },
 ];
 
 const th = {
@@ -64,7 +52,7 @@ const td = {
   lineHeight: 1.5,
 };
 
-function ColTable({ rows, required }) {
+function ColTable({ rows }) {
   return (
     <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
       <thead>
@@ -81,13 +69,6 @@ function ColTable({ rows, required }) {
               <span className="mono" style={{ fontSize: 11 }}>
                 {r.col}
               </span>
-              {required && r.req && (
-                <span
-                  style={{ color: "var(--red)", marginLeft: 4, fontSize: 10 }}
-                >
-                  *
-                </span>
-              )}
             </td>
             <td style={{ ...td, color: "var(--text-2)" }}>
               {r.alt ? (
@@ -106,20 +87,21 @@ function ColTable({ rows, required }) {
   );
 }
 
-export default function ImportModal({ onClose }) {
+export default function JobOrderImportModal({ onClose }) {
   const qc = useQueryClient();
   const fileRef = useRef(null);
   const [result, setResult] = useState(null);
 
   const mutation = useMutation({
-    mutationFn: (fd) => uploadExcel(fd),
+    mutationFn: (fd) => uploadJobOrderExcel(fd),
     onSuccess: (res) => {
-      qc.invalidateQueries(["employees"]);
+      qc.invalidateQueries(["jobOrders"]);
       setResult({
         ok: true,
         message: res.data.message,
         processed: res.data.processedCount,
         skipped: res.data.skippedCount,
+        errors: res.data.errors || [],
       });
     },
     onError: (err) => {
@@ -147,9 +129,9 @@ export default function ImportModal({ onClose }) {
       className="overlay show"
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div className="modal" style={{ width: 580 }}>
+      <div className="modal" style={{ width: 600 }}>
         <div className="modal-head">
-          <h3>Import Excel Data</h3>
+          <h3>Import Job Orders from Excel</h3>
           <button className="modal-close" onClick={onClose}>
             ×
           </button>
@@ -167,13 +149,14 @@ export default function ImportModal({ onClose }) {
               lineHeight: 1.6,
             }}
           >
-            Your file must use the <b>first sheet</b> with column headers
-            exactly as listed below. Column order does not matter. Existing
-            records are matched and updated by{" "}
+            Each row represents one job order. Slots are auto-generated from the
+            trade quantity columns. Rows with a duplicate{" "}
             <span className="mono" style={{ fontSize: 11 }}>
-              Employee ID
+              Job Order Number
             </span>{" "}
-            (upsert).
+            are skipped.
+            <b> Project Engineer</b> column is optional — defaults to <i>TBD</i>{" "}
+            if omitted.
           </p>
 
           <div style={{ marginBottom: 14 }}>
@@ -195,7 +178,7 @@ export default function ImportModal({ onClose }) {
                 overflow: "hidden",
               }}
             >
-              <ColTable rows={REQUIRED_COLS} required />
+              <ColTable rows={REQUIRED_COLS} />
             </div>
           </div>
 
@@ -209,7 +192,7 @@ export default function ImportModal({ onClose }) {
                 letterSpacing: ".03em",
               }}
             >
-              OPTIONAL COLUMNS
+              TRADE QUANTITY COLUMNS (at least one required)
             </div>
             <div
               style={{
@@ -218,7 +201,7 @@ export default function ImportModal({ onClose }) {
                 overflow: "hidden",
               }}
             >
-              <ColTable rows={OPTIONAL_COLS} />
+              <ColTable rows={TRADE_COLS} />
             </div>
           </div>
 
@@ -238,9 +221,10 @@ export default function ImportModal({ onClose }) {
             <span className="mono" style={{ fontSize: 11 }}>
               DD/MM/YYYY
             </span>{" "}
-            or leave as an Excel date cell. All imported employees default to{" "}
-            <b>AVAILABLE</b> status. Rows missing both Employee ID and Full Name
-            are skipped automatically.
+            or Excel date cells. Demob date is auto-calculated as{" "}
+            <b>start date + 90 days</b>. Rows missing Job Order Number, Site
+            Name, Client Category, Start Date, or all trade quantities are
+            skipped.
           </div>
 
           {result && (
@@ -257,11 +241,26 @@ export default function ImportModal({ onClose }) {
             >
               {result.ok ? (
                 <>
-                  <b>Import successful.</b> {result.processed} record
-                  {result.processed !== 1 ? "s" : ""} processed
+                  <b>Import successful.</b> {result.processed} job order
+                  {result.processed !== 1 ? "s" : ""} created
                   {result.skipped > 0 &&
-                    `, ${result.skipped} row${result.skipped !== 1 ? "s" : ""} skipped (missing required fields)`}
+                    `, ${result.skipped} row${result.skipped !== 1 ? "s" : ""} skipped`}
                   .
+                  {result.errors?.length > 0 && (
+                    <ul
+                      style={{
+                        marginTop: 6,
+                        paddingLeft: 16,
+                        color: "var(--text-2)",
+                      }}
+                    >
+                      {result.errors.map((e, i) => (
+                        <li key={i} style={{ fontSize: 11 }}>
+                          {e}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </>
               ) : (
                 <>

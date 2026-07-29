@@ -17,6 +17,17 @@ const employeeSchema = new mongoose.Schema({
     seaSurvivalExpiry: { type: Date }
   },
 
+   documents: {
+    hsePassport: {
+      number: { type: String, default: null },
+      expiry: { type: Date, default: null },
+    },
+    cicpaPass: {
+      number: { type: String, default: null },
+      expiry: { type: Date, default: null },
+    },
+  },
+  
   // Operational Status
   status: { 
     type: String, 
