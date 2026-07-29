@@ -5,12 +5,25 @@ import Employee from "../models/Employee.js";
 // Helper function to safely parse Excel serial dates or string dates
 const parseExcelDate = (excelValue) => {
   if (!excelValue) return null;
+
+  // Excel serial number
   if (typeof excelValue === "number") {
-    // Convert Excel serial number to JS Date
     return new Date(Math.round((excelValue - 25569) * 86400 * 1000));
   }
-  const parsedDate = new Date(excelValue);
-  return isNaN(parsedDate.getTime()) ? null : parsedDate;
+
+  const str = String(excelValue).trim();
+
+  // DD-MM-YYYY or DD/MM/YYYY — must be handled before new Date() which assumes MM/DD
+  const dmyMatch = str.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})$/);
+  if (dmyMatch) {
+    const [, day, month, year] = dmyMatch;
+    const d = new Date(Date.UTC(+year, +month - 1, +day));
+    return isNaN(d.getTime()) ? null : d;
+  }
+
+  // ISO or other formats JS can handle natively (YYYY-MM-DD etc.)
+  const parsed = new Date(excelValue);
+  return isNaN(parsed.getTime()) ? null : parsed;
 };
 
 // @desc    Get all manpower with multi-trade, status & training compliance filters

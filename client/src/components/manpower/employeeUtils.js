@@ -1,0 +1,32 @@
+export const EMP_STATUSES = ["AVAILABLE", "RESERVED", "BOOKED", "MOBILIZED", "VACATION", "HALTED"];
+
+export const TRADES = ["Supervisor", "Foreman", "Fabricator", "Welder", "Fitter", "Rigger", "Helper", "Other"];
+
+export function toDateInput(val) {
+  if (!val) return "";
+  const d = new Date(val);
+  if (isNaN(d)) return "";
+  return d.toISOString().split("T")[0];
+}
+
+export function getLevel(date) {
+  if (!date) return "gray";
+  const now = new Date();
+  const d = new Date(date);
+  if (d < now) return "red";
+  const soon = new Date();
+  soon.setDate(now.getDate() + 30);
+  if (d < soon) return "yellow";
+  return "green";
+}
+
+export function hasDoc(doc) {
+  return !!(
+    doc?.number?.trim() ||
+    (doc?.expiry && new Date(doc.expiry) >= new Date())
+  );
+}
+
+export function isMobReady(emp) {
+  return hasDoc(emp.documents?.hsePassport) && hasDoc(emp.documents?.cicpaPass);
+}

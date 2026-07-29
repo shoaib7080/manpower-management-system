@@ -409,6 +409,24 @@ export const assignEmployeeToSlot = async (req, res) => {
       return res.status(404).json({ message: "Employee not found." });
     }
 
+    // Mobilization readiness gate: both HSE Passport and CICPA Pass must have
+    // a number OR a future/present expiry date
+    const now2 = new Date();
+    const hasHse =
+      employee.documents?.hsePassport?.number?.trim() ||
+      (employee.documents?.hsePassport?.expiry &&
+        new Date(employee.documents.hsePassport.expiry) >= now2);
+    const hasCicpa =
+      employee.documents?.cicpaPass?.number?.trim() ||
+      (employee.documents?.cicpaPass?.expiry &&
+        new Date(employee.documents.cicpaPass.expiry) >= now2);
+
+    if (!hasHse || !hasCicpa) {
+      return res.status(400).json({
+        message: `${employee.name} cannot be assigned — missing valid ${!hasHse ? "HSE Passport" : "CICPA Pass"}. Upload the document number or a valid expiry date first.`,
+      });
+    }
+
     // 2. Prevent double-booking if employee is already mobilized/reserved elsewhere
     if (
       (employee.status === EMPLOYEE_STATUS.MOBILIZED ||
