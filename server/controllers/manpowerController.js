@@ -5,25 +5,19 @@ import Employee from "../models/Employee.js";
 // Helper function to safely parse Excel serial dates or string dates
 const parseExcelDate = (excelValue) => {
   if (!excelValue) return null;
-
-  // Excel serial number
   if (typeof excelValue === "number") {
     return new Date(Math.round((excelValue - 25569) * 86400 * 1000));
   }
-
   const str = String(excelValue).trim();
-
-  // DD-MM-YYYY or DD/MM/YYYY — must be handled before new Date() which assumes MM/DD
-  const dmyMatch = str.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})$/);
+  // Handle DD-MM-YY or DD/MM/YY and DD-MM-YYYY or DD/MM/YYYY
+  const dmyMatch = str.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{2,4})$/);
   if (dmyMatch) {
-    const [, day, month, year] = dmyMatch;
-    const d = new Date(Date.UTC(+year, +month - 1, +day));
-    return isNaN(d.getTime()) ? null : d;
+    let [, d, m, y] = dmyMatch;
+    if (y.length === 2) y = "20" + y;
+    return new Date(`${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`);
   }
-
-  // ISO or other formats JS can handle natively (YYYY-MM-DD etc.)
-  const parsed = new Date(excelValue);
-  return isNaN(parsed.getTime()) ? null : parsed;
+  const parsedDate = new Date(str);
+  return isNaN(parsedDate.getTime()) ? null : parsedDate;
 };
 
 // @desc    Get all manpower with multi-trade, status & training compliance filters
@@ -239,10 +233,28 @@ export const importEmployeesFromExcel = async (req, res) => {
       };
 
       // Perform Upsert (Insert if new, update basic info if existing)
+      const setFields = {};
+      for (const [key, val] of Object.entries(employeeDoc)) {
+        if (key === "trainings") {
+          for (const [tKey, tVal] of Object.entries(val)) {
+            if (tVal != null) setFields[`trainings.${tKey}`] = tVal;
+          }
+        } else if (key === "documents") {
+          for (const [docKey, docVal] of Object.entries(val)) {
+            for (const [subKey, subVal] of Object.entries(docVal)) {
+              if (subVal != null)
+                setFields[`documents.${docKey}.${subKey}`] = subVal;
+            }
+          }
+        } else if (val != null) {
+          setFields[key] = val;
+        }
+      }
+
       bulkOperations.push({
         updateOne: {
           filter: { employeeId: employeeDoc.employeeId },
-          update: { $set: employeeDoc },
+          update: { $set: setFields },
           upsert: true,
         },
       });
