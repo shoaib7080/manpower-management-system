@@ -27,3 +27,5 @@ export const uploadJobOrderExcel = (formData) =>
   api.post("/job-orders/import", formData, {
     headers: { "Content-Type": "multipart/form-data" },
   });
+
+export const fetchAuditLogs = (params) => api.get("/audit-logs", { params });

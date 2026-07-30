@@ -4,6 +4,7 @@ import { fetchEmployees } from "../api/services";
 import ComplianceDot from "../components/ComplianceDot";
 import StatusBadge from "../components/StatusBadge";
 import AssignToJobModal from "../components/manpower/AssignToJobModal";
+import CreateEmployeeModal from "../components/manpower/CreateEmployeeModal";
 import EmployeeDetailModal from "../components/manpower/EmployeeDetailModal";
 import ImportModal from "../components/manpower/ImportModal";
 import {
@@ -53,6 +54,7 @@ export default function DirectoryPage() {
   const [importOpen, setImportOpen] = useState(false);
   const [viewEmp, setViewEmp] = useState(null);
   const [assignEmp, setAssignEmp] = useState(null);
+  const [createOpen, setCreateOpen] = useState(false);
 
   // Fetch all employees once — all filtering is frontend-only
   const { data, isLoading } = useQuery({
@@ -115,7 +117,12 @@ export default function DirectoryPage() {
           >
             ↑ Import Excel Data
           </button>
-          <button className="btn btn-primary">+ Add New Employee</button>
+          <button
+            className="btn btn-primary"
+            onClick={() => setCreateOpen(true)}
+          >
+            + Add New Employee
+          </button>
         </div>
       </div>
 
@@ -277,6 +284,9 @@ export default function DirectoryPage() {
       )}
       {assignEmp && (
         <AssignToJobModal emp={assignEmp} onClose={() => setAssignEmp(null)} />
+      )}
+      {createOpen && (
+        <CreateEmployeeModal onClose={() => setCreateOpen(false)} />
       )}
     </div>
   );

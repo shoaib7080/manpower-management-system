@@ -1,27 +1,46 @@
-import { createBrowserRouter, Navigate, RouterProvider } from 'react-router-dom';
-import { AuthProvider, useAuth } from './context/AuthContext';
-import DashboardLayout from './layouts/DashboardLayout';
-import DirectoryPage from './pages/DirectoryPage';
-import ErrorPage, { PageErrorElement } from './pages/ErrorPage';
-import JobOrdersPage from './pages/JobOrdersPage';
-import LoginPage from './pages/LoginPage';
+import {
+  createBrowserRouter,
+  Navigate,
+  RouterProvider,
+} from "react-router-dom";
+import { AuthProvider, useAuth } from "./context/AuthContext";
+import DashboardLayout from "./layouts/DashboardLayout";
+import AuditLogPage from "./pages/AuditLogPage";
+import DirectoryPage from "./pages/DirectoryPage";
+import ErrorPage, { PageErrorElement } from "./pages/ErrorPage";
+import JobOrdersPage from "./pages/JobOrdersPage";
+import LoginPage from "./pages/LoginPage";
 
 const router = createBrowserRouter([
   {
-    path: '/',
+    path: "/",
     element: <DashboardLayout />,
     errorElement: <ErrorPage />,
-   children: [
+    children: [
       { index: true, element: <Navigate to="/directory" replace /> },
-      { path: 'directory', element: <DirectoryPage />, errorElement: <PageErrorElement /> },
-      { path: 'job-orders', element: <JobOrdersPage />, errorElement: <PageErrorElement /> },
+      {
+        path: "directory",
+        element: <DirectoryPage />,
+        errorElement: <PageErrorElement />,
+      },
+      {
+        path: "job-orders",
+        element: <JobOrdersPage />,
+        errorElement: <PageErrorElement />,
+      },
+      {
+        path: "audit-log",
+        element: <AuditLogPage />,
+        errorElement: <PageErrorElement />,
+      },
     ],
   },
 ]);
 
 function MainLayout() {
   const { isAuthenticated, loading } = useAuth();
-  if (loading) return <div className="p-6 text-xs text-slate-500">Loading Session...</div>;
+  if (loading)
+    return <div className="p-6 text-xs text-slate-500">Loading Session...</div>;
   if (!isAuthenticated) return <LoginPage />;
   return <RouterProvider router={router} />;
 }

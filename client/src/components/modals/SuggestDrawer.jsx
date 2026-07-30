@@ -91,10 +91,9 @@ export default function SuggestDrawer() {
   const qc = useQueryClient();
   const jobOrders = qc.getQueryData(["jobOrders"]) || [];
   const jo = open ? jobOrders.find((j) => j._id === joId) : null;
-  const slot = jo ? jo.slots[slotIdx] : null;
+  const slot = jo ? jo.slots.find((s) => s._id === slotId) : null;
 
-  const allEmployees =
-    qc.getQueryData(["employees", "", "", "", ""])?.employees || [];
+  const allEmployees = qc.getQueryData(["employees"])?.employees || [];
   const candidates = slot
     ? allEmployees.filter(
         (e) =>

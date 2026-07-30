@@ -1,41 +1,56 @@
-import React, { useState } from 'react';
-import { X, UserPlus, AlertCircle } from 'lucide-react';
-import { TRADES } from '../../../../server/config/constants'; // or define standard trade array locally
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { AlertCircle, UserPlus, X } from "lucide-react";
+import { useState } from "react";
+import { createEmployee } from "../../api/services";
 
 const TRADE_OPTIONS = [
-  'Supervisor', 'Foreman', 'Fabricator', 'Welder', 'Fitter', 'Rigger', 'Helper', 'Other'
+  "Supervisor",
+  "Foreman",
+  "Fabricator",
+  "Welder",
+  "Fitter",
+  "Rigger",
+  "Helper",
+  "Other",
 ];
 
-export default function CreateEmployeeModal({ isOpen, onClose, onSubmit, isPending }) {
+export default function CreateEmployeeModal({ onClose }) {
+  const qc = useQueryClient();
   const [formData, setFormData] = useState({
-    employeeId: '',
-    name: '',
-    trade: 'Fabricator',
-    dob: '',
-    emiratesId: '',
-    passportNumber: '',
-    adnocInductionExpiry: '',
-    h2sExpiry: '',
-    medicalExpiry: '',
-    seaSurvivalExpiry: '',
+    employeeId: "",
+    name: "",
+    trade: "Fabricator",
+    dob: "",
+    emiratesId: "",
+    passportNumber: "",
+    adnocInductionExpiry: "",
+    h2sExpiry: "",
+    medicalExpiry: "",
+    seaSurvivalExpiry: "",
+  });
+  const [error, setError] = useState("");
+
+  const mutation = useMutation({
+    mutationFn: (payload) => createEmployee(payload),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["employees"] });
+      onClose();
+    },
+    onError: (err) =>
+      setError(err.response?.data?.message || "Failed to create employee."),
   });
 
-  const [error, setError] = useState('');
-
-  if (!isOpen) return null;
-
-  const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
+  const handleChange = (e) =>
+    setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
 
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!formData.employeeId.trim() || !formData.name.trim()) {
-      setError('Employee ID and Full Name are strictly required.');
+      setError("Employee ID and Full Name are required.");
       return;
     }
-
-    const payload = {
+    setError("");
+    mutation.mutate({
       employeeId: formData.employeeId.trim(),
       name: formData.name.trim(),
       trade: formData.trade,
@@ -47,11 +62,8 @@ export default function CreateEmployeeModal({ isOpen, onClose, onSubmit, isPendi
         h2sExpiry: formData.h2sExpiry || null,
         medicalExpiry: formData.medicalExpiry || null,
         seaSurvivalExpiry: formData.seaSurvivalExpiry || null,
-      }
-    };
-
-    setError('');
-    onSubmit(payload);
+      },
+    });
   };
 
   return (
@@ -60,9 +72,16 @@ export default function CreateEmployeeModal({ isOpen, onClose, onSubmit, isPendi
         <div className="flex justify-between items-center mb-4 border-b pb-2">
           <div className="flex items-center gap-2">
             <UserPlus size={18} className="text-blue-600" />
-            <h3 className="font-bold text-slate-900">Add New Employee Profile</h3>
+            <h3 className="font-bold text-slate-900">
+              Add New Employee Profile
+            </h3>
           </div>
-          <button onClick={onClose} className="text-slate-500 hover:text-slate-800"><X size={18} /></button>
+          <button
+            onClick={onClose}
+            className="text-slate-500 hover:text-slate-800"
+          >
+            <X size={18} />
+          </button>
         </div>
 
         {error && (
@@ -73,7 +92,6 @@ export default function CreateEmployeeModal({ isOpen, onClose, onSubmit, isPendi
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Basic Personal Info */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <div>
               <label className="block text-xs font-semibold uppercase text-slate-600 mb-1">
@@ -88,7 +106,6 @@ export default function CreateEmployeeModal({ isOpen, onClose, onSubmit, isPendi
                 className="w-full text-xs border border-slate-300 rounded p-2 outline-none focus:border-blue-600"
               />
             </div>
-
             <div>
               <label className="block text-xs font-semibold uppercase text-slate-600 mb-1">
                 Full Name <span className="text-red-500">*</span>
@@ -102,10 +119,9 @@ export default function CreateEmployeeModal({ isOpen, onClose, onSubmit, isPendi
                 className="w-full text-xs border border-slate-300 rounded p-2 outline-none focus:border-blue-600"
               />
             </div>
-
             <div>
               <label className="block text-xs font-semibold uppercase text-slate-600 mb-1">
-                Trade / Skill <span className="text-red-500">*</span>
+                Trade <span className="text-red-500">*</span>
               </label>
               <select
                 name="trade"
@@ -114,16 +130,19 @@ export default function CreateEmployeeModal({ isOpen, onClose, onSubmit, isPendi
                 className="w-full text-xs border border-slate-300 rounded p-2 outline-none bg-white focus:border-blue-600"
               >
                 {TRADE_OPTIONS.map((t) => (
-                  <option key={t} value={t}>{t}</option>
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
                 ))}
               </select>
             </div>
           </div>
 
-          {/* Identity Info */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <div>
-              <label className="block text-xs font-semibold uppercase text-slate-600 mb-1">Date of Birth</label>
+              <label className="block text-xs font-semibold uppercase text-slate-600 mb-1">
+                Date of Birth
+              </label>
               <input
                 type="date"
                 name="dob"
@@ -132,9 +151,10 @@ export default function CreateEmployeeModal({ isOpen, onClose, onSubmit, isPendi
                 className="w-full text-xs border border-slate-300 rounded p-2 outline-none focus:border-blue-600"
               />
             </div>
-
             <div>
-              <label className="block text-xs font-semibold uppercase text-slate-600 mb-1">Emirates ID</label>
+              <label className="block text-xs font-semibold uppercase text-slate-600 mb-1">
+                Emirates ID
+              </label>
               <input
                 type="text"
                 name="emiratesId"
@@ -144,9 +164,10 @@ export default function CreateEmployeeModal({ isOpen, onClose, onSubmit, isPendi
                 className="w-full text-xs border border-slate-300 rounded p-2 outline-none focus:border-blue-600"
               />
             </div>
-
             <div>
-              <label className="block text-xs font-semibold uppercase text-slate-600 mb-1">Passport Number</label>
+              <label className="block text-xs font-semibold uppercase text-slate-600 mb-1">
+                Passport Number
+              </label>
               <input
                 type="text"
                 name="passportNumber"
@@ -159,12 +180,15 @@ export default function CreateEmployeeModal({ isOpen, onClose, onSubmit, isPendi
           </div>
 
           <hr className="border-slate-200 my-2" />
+          <h4 className="text-xs font-bold uppercase text-slate-700">
+            ADNOC & Safety Clearance Expiry Dates
+          </h4>
 
-          {/* Training & ADNOC Clearances */}
-          <h4 className="text-xs font-bold uppercase text-slate-700">ADNOC & Safety Clearance Expiry Dates</h4>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs text-slate-600 mb-1">ADNOC Induction Expiry</label>
+              <label className="block text-xs text-slate-600 mb-1">
+                ADNOC Induction Expiry
+              </label>
               <input
                 type="date"
                 name="adnocInductionExpiry"
@@ -173,9 +197,10 @@ export default function CreateEmployeeModal({ isOpen, onClose, onSubmit, isPendi
                 className="w-full text-xs border border-slate-300 rounded p-2 outline-none focus:border-blue-600"
               />
             </div>
-
             <div>
-              <label className="block text-xs text-slate-600 mb-1">H2S Training Expiry</label>
+              <label className="block text-xs text-slate-600 mb-1">
+                H2S Training Expiry
+              </label>
               <input
                 type="date"
                 name="h2sExpiry"
@@ -184,9 +209,10 @@ export default function CreateEmployeeModal({ isOpen, onClose, onSubmit, isPendi
                 className="w-full text-xs border border-slate-300 rounded p-2 outline-none focus:border-blue-600"
               />
             </div>
-
             <div>
-              <label className="block text-xs text-slate-600 mb-1">Medical Clearance Expiry</label>
+              <label className="block text-xs text-slate-600 mb-1">
+                Medical Clearance Expiry
+              </label>
               <input
                 type="date"
                 name="medicalExpiry"
@@ -195,9 +221,10 @@ export default function CreateEmployeeModal({ isOpen, onClose, onSubmit, isPendi
                 className="w-full text-xs border border-slate-300 rounded p-2 outline-none focus:border-blue-600"
               />
             </div>
-
             <div>
-              <label className="block text-xs text-slate-600 mb-1">Sea Survival Expiry (Offshore)</label>
+              <label className="block text-xs text-slate-600 mb-1">
+                Sea Survival Expiry
+              </label>
               <input
                 type="date"
                 name="seaSurvivalExpiry"
@@ -218,10 +245,10 @@ export default function CreateEmployeeModal({ isOpen, onClose, onSubmit, isPendi
             </button>
             <button
               type="submit"
-              disabled={isPending}
+              disabled={mutation.isPending}
               className="px-4 py-2 text-xs font-semibold bg-slate-900 text-white rounded hover:bg-slate-800 disabled:opacity-50"
             >
-              {isPending ? 'Saving...' : 'Save Employee'}
+              {mutation.isPending ? "Saving…" : "Save Employee"}
             </button>
           </div>
         </form>

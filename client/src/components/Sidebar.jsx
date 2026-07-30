@@ -1,11 +1,11 @@
-import { NavLink } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { NavLink } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 
 const LEGEND = [
-  ['var(--gray)', 'Available'],
-  ['var(--teal-light)', 'Reserved'],
-  ['var(--teal)', 'Booked · Locked'],
-  ['var(--green)', 'Mobilized · Locked'],
+  ["var(--gray)", "Available"],
+  ["var(--teal-light)", "Reserved"],
+  ["var(--teal)", "Booked · Locked"],
+  ["var(--green)", "Mobilized · Locked"],
 ];
 
 export default function Sidebar() {
@@ -21,11 +21,23 @@ export default function Sidebar() {
         </div>
       </div>
 
-      <NavLink to="/directory" className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}>
-         Personnel Directory
+      <NavLink
+        to="/directory"
+        className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}
+      >
+        Personnel Directory
       </NavLink>
-      <NavLink to="/job-orders" className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}>
+      <NavLink
+        to="/job-orders"
+        className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}
+      >
         Job Orders
+      </NavLink>
+      <NavLink
+        to="/audit-log"
+        className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}
+      >
+        Audit Trail
       </NavLink>
 
       <div className="sidebar-footer">
@@ -40,7 +52,14 @@ export default function Sidebar() {
           <button
             onClick={logout}
             className="nav-item"
-            style={{ marginTop: 12, width: '100%', border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--steel-300)' }}
+            style={{
+              marginTop: 12,
+              width: "100%",
+              border: "none",
+              background: "transparent",
+              cursor: "pointer",
+              color: "var(--steel-300)",
+            }}
           >
             <span className="ic">⏻</span> Sign Out
           </button>

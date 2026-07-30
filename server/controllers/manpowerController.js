@@ -174,7 +174,9 @@ export const importEmployeesFromExcel = async (req, res) => {
     // 1. Parse Excel buffer
     const workbook = xlsx.read(req.file.buffer, { type: "buffer" });
     const sheetName = workbook.SheetNames[0];
-    const rawRows = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName]);
+    const rawRows = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName], {
+      raw: false,
+    });
 
     if (!rawRows || rawRows.length === 0) {
       return res
@@ -255,7 +257,7 @@ export const importEmployeesFromExcel = async (req, res) => {
     res.status(200).json({
       message: "Bulk import completed successfully.",
       processedCount: bulkOperations.length,
-      skippedCount: skippedCount,
+      skippedCount,
     });
   } catch (error) {
     res
