@@ -1,24 +1,7 @@
 import xlsx from "xlsx";
 import { EMPLOYEE_STATUS } from "../config/constants.js";
 import Employee from "../models/Employee.js";
-
-// Helper function to safely parse Excel serial dates or string dates
-const parseExcelDate = (excelValue) => {
-  if (!excelValue) return null;
-  if (typeof excelValue === "number") {
-    return new Date(Math.round((excelValue - 25569) * 86400 * 1000));
-  }
-  const str = String(excelValue).trim();
-  // Handle DD-MM-YY or DD/MM/YY and DD-MM-YYYY or DD/MM/YYYY
-  const dmyMatch = str.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{2,4})$/);
-  if (dmyMatch) {
-    let [, d, m, y] = dmyMatch;
-    if (y.length === 2) y = "20" + y;
-    return new Date(`${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`);
-  }
-  const parsedDate = new Date(str);
-  return isNaN(parsedDate.getTime()) ? null : parsedDate;
-};
+import parseDate from "../utils/parseDate.js";
 
 // @desc    Get all manpower with multi-trade, status & training compliance filters
 // @route   GET /api/manpower
@@ -199,7 +182,7 @@ export const importEmployeesFromExcel = async (req, res) => {
         employeeId: String(empId).trim(),
         name: String(name).trim(),
         trade: String(trade).trim(),
-        dob: parseExcelDate(row["DOB"] || row["Date of Birth"]),
+        dob: parseDate(row["DOB"] || row["Date of Birth"]),
         emiratesId: row["Emirates ID"]
           ? String(row["Emirates ID"]).trim()
           : undefined,
@@ -207,18 +190,16 @@ export const importEmployeesFromExcel = async (req, res) => {
           ? String(row["Passport Number"]).trim()
           : undefined,
         trainings: {
-          adnocInductionExpiry: parseExcelDate(row["ADNOC Induction Expiry"]),
-          h2sExpiry: parseExcelDate(
-            row["H2S Training Expiry"] || row["H2S Expiry"],
-          ),
-          medicalExpiry: parseExcelDate(row["Medical Expiry"]),
-          seaSurvivalExpiry: parseExcelDate(row["Sea Survival Expiry"]),
+          adnocInductionExpiry: parseDate(row["ADNOC Induction Expiry"]),
+          h2sExpiry: parseDate(row["H2S Training Expiry"] || row["H2S Expiry"]),
+          medicalExpiry: parseDate(row["Medical Expiry"]),
+          seaSurvivalExpiry: parseDate(row["Sea Survival Expiry"]),
         },
         documents: {
           hsePassport: {
             number:
               row["HSE Passport Number"] || row["HSE Passport No"] || null,
-            expiry: parseExcelDate(row["HSE Passport Expiry"]),
+            expiry: parseDate(row["HSE Passport Expiry"]),
           },
           cicpaPass: {
             number:
@@ -226,9 +207,7 @@ export const importEmployeesFromExcel = async (req, res) => {
               row["CICPA Pass No"] ||
               row["CICPA No"] ||
               null,
-            expiry: parseExcelDate(
-              row["CICPA Expiry"] || row["CICPA Pass Expiry"],
-            ),
+            expiry: parseDate(row["CICPA Expiry"] || row["CICPA Pass Expiry"]),
           },
         },
         status: sanitizedStatus,

@@ -3,6 +3,7 @@ import { EMPLOYEE_STATUS, ROLE_LEVELS } from "../config/constants.js";
 import AuditLog from "../models/AuditLog.js";
 import Employee from "../models/Employee.js";
 import JobOrder from "../models/JobOrder.js";
+import parseDate from "../utils/parseDate.js";
 
 // Helper: Calculate default 90-day demobilization date
 const calculate90DayDemob = (startDate) => {
@@ -102,13 +103,6 @@ export const importJobOrdersFromExcel = async (req, res) => {
       "Helper",
       "Other",
     ];
-    const parseDate = (v) => {
-      if (!v) return null;
-      if (typeof v === "number")
-        return new Date(Math.round((v - 25569) * 86400 * 1000));
-      const d = new Date(v);
-      return isNaN(d) ? null : d;
-    };
 
     let processedCount = 0;
     let skippedCount = 0;
