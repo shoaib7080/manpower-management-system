@@ -54,6 +54,16 @@ export default function CreateEmployeeModal({ onClose }) {
     });
   };
 
+  const mutation = useMutation({
+    mutationFn: (payload) => createEmployee(payload),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["employees"] });
+      onClose();
+    },
+    onError: (err) =>
+      setError(err.response?.data?.message || "Failed to create employee."),
+  });
+
   return (
     <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
       <div className="bg-white border border-slate-300 rounded-md w-full max-w-2xl p-6 shadow-xl max-h-[90vh] overflow-y-auto">
@@ -120,6 +130,24 @@ export default function CreateEmployeeModal({ onClose }) {
                 {TRADE_OPTIONS.map((t) => (
                   <option key={t} value={t}>
                     {t}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold uppercase text-slate-600 mb-1">
+                Specialization
+              </label>
+              <select
+                name="specialization"
+                value={formData.specialization}
+                onChange={handleChange}
+                className="w-full text-xs border border-slate-300 rounded p-2 outline-none bg-white focus:border-blue-600"
+              >
+                <option value="">— None —</option>
+                {specializations.map((s) => (
+                  <option key={s._id} value={s.name}>
+                    {s.name}
                   </option>
                 ))}
               </select>
