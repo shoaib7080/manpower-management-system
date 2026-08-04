@@ -4,7 +4,7 @@ import { TRADES } from "../config/constants.js";
 const specializationSchema = new mongoose.Schema(
   {
     name: { type: String, required: true, trim: true },
-    nameLower: { type: String, index: true },
+    nameLower: { type: String },
     trade: { type: String, required: true, enum: TRADES },
     active: { type: Boolean, default: true },
   },

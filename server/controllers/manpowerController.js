@@ -129,12 +129,12 @@ export const getEmployees = async (req, res) => {
 // @access  Protected (Level 2 or higher)
 export const createEmployee = async (req, res) => {
   try {
-    const { employeeId, emiratesId } = req.body;
+    const { employeeId, emiratesId, specialization, trade } = req.body;
 
     // Check duplicates
-    const existingEmp = await Employee.findOne({
-      $or: [{ employeeId }, { emiratesId: emiratesId || "N/A" }],
-    });
+    const orConditions = [{ employeeId }];
+    if (emiratesId) orConditions.push({ emiratesId });
+    const existingEmp = await Employee.findOne({ $or: orConditions });
 
     if (existingEmp) {
       return res

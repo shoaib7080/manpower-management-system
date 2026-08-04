@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertCircle, UserPlus, X } from "lucide-react";
 import { useState } from "react";
-import { createEmployee } from "../../api/services";
+import { createEmployee, getSpecializations } from "../../api/services";
 import { TRADES } from "./employeeUtils";
 
 export default function CreateEmployeeModal({ onClose }) {
@@ -60,8 +60,11 @@ export default function CreateEmployeeModal({ onClose }) {
       qc.invalidateQueries({ queryKey: ["employees"] });
       onClose();
     },
-    onError: (err) =>
-      setError(err.response?.data?.message || "Failed to create employee."),
+    onError: (err) => {
+      const msg =
+        err.response?.data?.message ?? err.response?.data ?? err.message;
+      setError(typeof msg === "string" ? msg : "Failed to create employee.");
+    },
   });
 
   return (
@@ -127,7 +130,7 @@ export default function CreateEmployeeModal({ onClose }) {
                 onChange={handleChange}
                 className="w-full text-xs border border-slate-300 rounded p-2 outline-none bg-white focus:border-blue-600"
               >
-                {TRADE_OPTIONS.map((t) => (
+                {TRADES.map((t) => (
                   <option key={t} value={t}>
                     {t}
                   </option>
