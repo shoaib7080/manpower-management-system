@@ -29,3 +29,8 @@ export const uploadJobOrderExcel = (formData) =>
   });
 
 export const fetchAuditLogs = (params) => api.get("/audit-logs", { params });
+
+export const getSpecializations = (trade) =>
+  api.get("/specializations", { params: trade ? { trade } : {} });
+export const createSpecialization = (payload) =>
+  api.post("/specializations", payload);

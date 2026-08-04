@@ -101,6 +101,7 @@ export default function JobOrderImportModal({ onClose }) {
         message: res.data.message,
         processed: res.data.processedCount,
         skipped: res.data.skippedCount,
+        skippedRows: res.data.skipped || [],
         errors: res.data.errors || [],
       });
     },
@@ -246,12 +247,27 @@ export default function JobOrderImportModal({ onClose }) {
                   {result.skipped > 0 &&
                     `, ${result.skipped} row${result.skipped !== 1 ? "s" : ""} skipped`}
                   .
+                  {result.skippedRows?.length > 0 && (
+                    <ul
+                      style={{
+                        marginTop: 6,
+                        paddingLeft: 16,
+                        color: "var(--yellow)",
+                      }}
+                    >
+                      {result.skippedRows.map((e, i) => (
+                        <li key={i} style={{ fontSize: 11 }}>
+                          {e}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                   {result.errors?.length > 0 && (
                     <ul
                       style={{
                         marginTop: 6,
                         paddingLeft: 16,
-                        color: "var(--text-2)",
+                        color: "var(--red)",
                       }}
                     >
                       {result.errors.map((e, i) => (

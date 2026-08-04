@@ -1,18 +1,8 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertCircle, UserPlus, X } from "lucide-react";
 import { useState } from "react";
 import { createEmployee } from "../../api/services";
-
-const TRADE_OPTIONS = [
-  "Supervisor",
-  "Foreman",
-  "Fabricator",
-  "Welder",
-  "Fitter",
-  "Rigger",
-  "Helper",
-  "Other",
-];
+import { TRADES } from "./employeeUtils";
 
 export default function CreateEmployeeModal({ onClose }) {
   const qc = useQueryClient();
@@ -20,6 +10,7 @@ export default function CreateEmployeeModal({ onClose }) {
     employeeId: "",
     name: "",
     trade: "Fabricator",
+    specialization: "",
     dob: "",
     emiratesId: "",
     passportNumber: "",
@@ -30,14 +21,10 @@ export default function CreateEmployeeModal({ onClose }) {
   });
   const [error, setError] = useState("");
 
-  const mutation = useMutation({
-    mutationFn: (payload) => createEmployee(payload),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["employees"] });
-      onClose();
-    },
-    onError: (err) =>
-      setError(err.response?.data?.message || "Failed to create employee."),
+  const { data: specializations = [] } = useQuery({
+    queryKey: ["specializations", formData.trade],
+    queryFn: () => getSpecializations(formData.trade).then((r) => r.data),
+    enabled: !!formData.trade,
   });
 
   const handleChange = (e) =>
@@ -54,6 +41,7 @@ export default function CreateEmployeeModal({ onClose }) {
       employeeId: formData.employeeId.trim(),
       name: formData.name.trim(),
       trade: formData.trade,
+      specialization: formData.specialization || undefined,
       dob: formData.dob || null,
       emiratesId: formData.emiratesId.trim() || undefined,
       passportNumber: formData.passportNumber.trim() || undefined,

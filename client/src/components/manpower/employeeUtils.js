@@ -1,6 +1,29 @@
-export const EMP_STATUSES = ["AVAILABLE", "RESERVED", "BOOKED", "MOBILIZED", "VACATION", "HALTED"];
+export const EMP_STATUSES = [
+  "AVAILABLE",
+  "RESERVED",
+  "BOOKED",
+  "MOBILIZED",
+  "VACATION",
+  "HALTED",
+];
 
-export const TRADES = ["Supervisor", "Foreman", "Fabricator", "Welder", "Fitter", "Rigger", "Helper", "Other"];
+export const TRADES = [
+  "Supervisor",
+  "Foreman",
+  "Fabricator",
+  "Welder",
+  "Fitter",
+  "Rigger",
+  "Helper",
+  "Construction Engineer",
+  "QC",
+  "HSE",
+  "Fire Watcher",
+  "Habitat Supervisor",
+  "Habitat Technician",
+  "AP",
+  "Other",
+];
 
 export function toDateInput(val) {
   if (!val) return "";

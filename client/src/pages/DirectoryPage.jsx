@@ -230,7 +230,17 @@ export default function DirectoryPage() {
                   <td className="mono">{e.employeeId}</td>
                   <td>
                     <div className="emp-name">{e.name}</div>
-                    <div className="emp-trade">{e.trade}</div>
+                    <div className="emp-trade">
+                      {e.trade}
+                      {e.specialization && (
+                        <span
+                          style={{ color: "var(--text-3)", fontWeight: 400 }}
+                        >
+                          {" — "}
+                          {e.specialization}
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td className="mono">
                     {e.emiratesId || e.passportNumber || "—"}

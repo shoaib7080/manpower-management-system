@@ -87,8 +87,6 @@ export const importJobOrdersFromExcel = async (req, res) => {
     const rawRows = xlsx.utils.sheet_to_json(
       workbook.Sheets[workbook.SheetNames[0]],
     );
-    console.log("Total rows parsed:", rawRows.length);
-    console.log("First row sample:", rawRows[0]); // see exact column names & values
 
     if (!rawRows?.length)
       return res
@@ -103,14 +101,23 @@ export const importJobOrdersFromExcel = async (req, res) => {
       "Fitter",
       "Rigger",
       "Helper",
+      "Construction Engineer",
+      "QC",
+      "HSE",
+      "Fire Watcher",
+      "Habitat Supervisor",
+      "Habitat Technician",
+      "AP",
       "Other",
     ];
 
     let processedCount = 0;
-    let skippedCount = 0;
+    const skipped = [];
     const errors = [];
 
-    for (const row of rawRows) {
+    for (const [i, row] of rawRows.entries()) {
+      const rowNum = i + 2; // Excel row number (1-indexed + header)
+
       const jobOrderNumber = String(
         row["Job Order Number"] || row["JO Number"] || row["JobOrderNo"] || "",
       ).trim();
@@ -123,12 +130,27 @@ export const importJobOrdersFromExcel = async (req, res) => {
       ).trim();
       const startDate = parseDate(row["Start Date"] || row["Mob Date"]);
 
-      if (!jobOrderNumber || !siteName || !clientCategory || !startDate) {
-        skippedCount++;
+      if (!jobOrderNumber) {
+        skipped.push(`Row ${rowNum}: missing Job Order Number`);
+        continue;
+      }
+      if (!siteName) {
+        skipped.push(`Row ${rowNum} (${jobOrderNumber}): missing Site Name`);
+        continue;
+      }
+      if (!clientCategory) {
+        skipped.push(
+          `Row ${rowNum} (${jobOrderNumber}): missing Client Category`,
+        );
+        continue;
+      }
+      if (!startDate) {
+        skipped.push(
+          `Row ${rowNum} (${jobOrderNumber}): missing or invalid Start Date — value was "${row["Start Date"] || row["Mob Date"] || "not found"}"`,
+        );
         continue;
       }
 
-      // Build requirements from trade qty columns
       const requirements = [];
       TRADE_COLS.forEach((trade) => {
         const qty = parseInt(row[`${trade} Qty`] || row[trade] || 0);
@@ -136,63 +158,55 @@ export const importJobOrdersFromExcel = async (req, res) => {
       });
 
       if (!requirements.length) {
-        skippedCount++;
+        skipped.push(
+          `Row ${rowNum} (${jobOrderNumber}): no valid trade quantities found`,
+        );
         continue;
       }
 
-      // Check for duplicate
       const existing = await JobOrder.findOne({ jobOrderNumber });
       if (existing) {
-        errors.push(`${jobOrderNumber}: already exists, skipped.`);
-        skippedCount++;
+        skipped.push(
+          `Row ${rowNum} (${jobOrderNumber}): already exists, skipped`,
+        );
         continue;
       }
 
-      const targetDemobDate = calculate90DayDemob(startDate);
-      const slots = [];
-      requirements.forEach(({ trade, requiredQty }) => {
-        for (let i = 1; i <= requiredQty; i++) {
-          slots.push({
-            slotNumber: i,
-            trade,
-            assignedEmployee: null,
-            status: "UNASSIGNED",
-            mobDate: null,
-            demobDate: null,
-          });
-          console.log("Attempting to save:", {
-            jobOrderNumber,
-            siteName,
-            clientCategory,
-            startDate,
-            requirements,
-          });
-        }
-      });
-
-      await new JobOrder({
-        jobOrderNumber,
-        siteName,
-        clientCategory,
-        projectEngineer: projectEngineer || "TBD",
-        startDate,
-        targetDemobDate,
-        requirements,
-        slots,
-        status: "Active",
-      }).save();
-
-      processedCount++;
+      try {
+        await new JobOrder({
+          jobOrderNumber,
+          siteName,
+          clientCategory,
+          projectEngineer: projectEngineer || "TBD",
+          startDate,
+          targetDemobDate: calculate90DayDemob(startDate),
+          requirements,
+          slots: requirements.flatMap(({ trade, requiredQty }) =>
+            Array.from({ length: requiredQty }, (_, i) => ({
+              slotNumber: i + 1,
+              trade,
+              assignedEmployee: null,
+              status: "UNASSIGNED",
+              mobDate: null,
+              demobDate: null,
+            })),
+          ),
+          status: "Active",
+        }).save();
+        processedCount++;
+      } catch (saveErr) {
+        errors.push(`Row ${rowNum} (${jobOrderNumber}): ${saveErr.message}`);
+      }
     }
 
     res.status(200).json({
       message: "Job order import completed.",
       processedCount,
-      skippedCount,
+      skippedCount: skipped.length,
+      skipped,
       errors,
     });
   } catch (error) {
-    console.error("Import error full details:", error);
     res
       .status(500)
       .json({ message: "Job order import failed", error: error.message });

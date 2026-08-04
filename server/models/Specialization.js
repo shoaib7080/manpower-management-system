@@ -1,0 +1,21 @@
+import mongoose from "mongoose";
+import { TRADES } from "../config/constants.js";
+
+const specializationSchema = new mongoose.Schema(
+  {
+    name: { type: String, required: true, trim: true },
+    nameLower: { type: String, index: true },
+    trade: { type: String, required: true, enum: TRADES },
+    active: { type: Boolean, default: true },
+  },
+  { timestamps: true },
+);
+
+specializationSchema.index({ nameLower: 1 }, { unique: true });
+
+specializationSchema.pre("save", function (next) {
+  this.nameLower = this.name.toLowerCase();
+  next();
+});
+
+export default mongoose.model("Specialization", specializationSchema);

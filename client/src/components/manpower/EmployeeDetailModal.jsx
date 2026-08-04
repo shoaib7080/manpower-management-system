@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import {
   deleteEmployee as deleteEmployeeApi,
+  getSpecializations,
   updateEmployee as updateEmployeeApi,
 } from "../../api/services";
 import ComplianceDot from "../ComplianceDot";
@@ -56,6 +57,7 @@ export default function EmployeeDetailModal({ emp, onClose }) {
   const [form, setForm] = useState({
     name: emp.name || "",
     trade: emp.trade || "",
+    specialization: emp.specialization || "",
     status: emp.status || "AVAILABLE",
     dob: toDateInput(emp.dob),
     emiratesId: emp.emiratesId || "",
@@ -79,6 +81,12 @@ export default function EmployeeDetailModal({ emp, onClose }) {
   });
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [error, setError] = useState("");
+
+  const { data: specializations = [] } = useQuery({
+    queryKey: ["specializations", form.trade],
+    queryFn: () => getSpecializations(form.trade).then((r) => r.data),
+    enabled: !!form.trade,
+  });
 
   const set = (path, val) =>
     setForm((prev) => {
@@ -136,7 +144,7 @@ export default function EmployeeDetailModal({ emp, onClose }) {
               borderRadius: 4,
             }}
           >
-            ⚠ Not assignable — missing valid HSE Passport or CICPA Pass. Update
+            Not assignable — missing valid HSE Passport or CICPA Pass. Update
             the document fields below and save.
           </div>
         )}
@@ -180,8 +188,26 @@ export default function EmployeeDetailModal({ emp, onClose }) {
               <input
                 style={inputStyle}
                 value={form.trade}
-                onChange={(e) => set("trade", e.target.value)}
-              ></input>
+                onChange={(e) => {
+                  set("trade", e.target.value);
+                  set("specialization", "");
+                }}
+              />
+            </div>
+            <div style={fieldStyle}>
+              <label style={labelStyle}>Specialization</label>
+              <select
+                style={inputStyle}
+                value={form.specialization}
+                onChange={(e) => set("specialization", e.target.value)}
+              >
+                <option value="">— None —</option>
+                {specializations.map((s) => (
+                  <option key={s._id} value={s.name}>
+                    {s.name}
+                  </option>
+                ))}
+              </select>
             </div>
             <div style={fieldStyle}>
               <label style={labelStyle}>Status</label>

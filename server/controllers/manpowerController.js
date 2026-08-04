@@ -1,7 +1,23 @@
 import xlsx from "xlsx";
 import { EMPLOYEE_STATUS } from "../config/constants.js";
 import Employee from "../models/Employee.js";
+import Specialization from "../models/Specialization.js";
 import parseDate from "../utils/parseDate.js";
+
+// Validate specialization against active list for the given trade.
+// Returns the canonical name on match, null if blank, or throws a string error.
+async function resolveSpecialization(raw, trade) {
+  if (!raw || !String(raw).trim()) return null;
+  const normalized = String(raw).trim().toLowerCase();
+  const found = await Specialization.findOne({
+    nameLower: normalized,
+    trade,
+    active: true,
+  });
+  if (!found)
+    throw `"${String(raw).trim()}" is not a recognized specialization for trade "${trade}". Add it to the specialization list first.`;
+  return found.name;
+}
 
 // @desc    Get all manpower with multi-trade, status & training compliance filters
 // @route   GET /api/manpower
@@ -126,7 +142,17 @@ export const createEmployee = async (req, res) => {
         .json({ message: "Employee ID or Emirates ID already exists." });
     }
 
-    const newEmployee = new Employee(req.body);
+    let resolvedSpec;
+    try {
+      resolvedSpec = await resolveSpecialization(specialization, trade);
+    } catch (msg) {
+      return res.status(400).json({ message: msg });
+    }
+
+    const newEmployee = new Employee({
+      ...req.body,
+      specialization: resolvedSpec,
+    });
     await newEmployee.save();
 
     res
@@ -161,27 +187,57 @@ export const importEmployeesFromExcel = async (req, res) => {
         .json({ message: "Uploaded Excel sheet is empty." });
     }
 
-    // 2. Map and sanitize Excel rows
-    const bulkOperations = [];
-    let skippedCount = 0;
+    // Load all active specializations once for batch lookup
+    const allSpecs = await Specialization.find({ active: true });
+    const specMap = new Map(allSpecs.map((s) => [s.nameLower, s]));
 
-    for (const row of rawRows) {
+    // 2. Map and sanitize Excel rows
+    let processedCount = 0;
+    let skippedCount = 0;
+    const errors = [];
+
+    for (const [i, row] of rawRows.entries()) {
+      const rowNum = i + 2;
       const empId = row["Employee ID"] || row["EMP_ID"] || row["EmployeeNo"];
       const name = row["Full Name"] || row["Name"] || row["Employee Name"];
-      const trade = row["Trade"] || row["Designation"] || "Other";
+      const rawTrade = String(
+        row["Trade"] || row["Designation"] || "Other",
+      ).trim();
 
       if (!empId || !name) {
         skippedCount++;
         continue;
       }
 
-      // Default unverified legacy site statuses to AVAILABLE for quick cleanup
-      const sanitizedStatus = EMPLOYEE_STATUS.AVAILABLE;
+      // Validate trade against enum
+      if (!TRADES.includes(rawTrade)) {
+        errors.push(
+          `Row ${rowNum} (${empId}): "${rawTrade}" is not a valid trade — must be one of: ${TRADES.join(", ")}`,
+        );
+        continue;
+      }
+
+      // Resolve specialization
+      let resolvedSpec = null;
+      const rawSpec = row["Specialization"]
+        ? String(row["Specialization"]).trim()
+        : "";
+      if (rawSpec) {
+        const specEntry = specMap.get(rawSpec.toLowerCase());
+        if (!specEntry || specEntry.trade !== rawTrade) {
+          errors.push(
+            `Row ${rowNum} (${empId}): "${rawSpec}" is not a recognized specialization for trade "${rawTrade}". Add it to the specialization list first.`,
+          );
+          continue;
+        }
+        resolvedSpec = specEntry.name;
+      }
 
       const employeeDoc = {
         employeeId: String(empId).trim(),
         name: String(name).trim(),
-        trade: String(trade).trim(),
+        trade: rawTrade,
+        specialization: resolvedSpec,
         dob: parseDate(row["DOB"] || row["Date of Birth"]),
         emiratesId: row["Emirates ID"]
           ? String(row["Emirates ID"]).trim()
@@ -210,7 +266,7 @@ export const importEmployeesFromExcel = async (req, res) => {
             expiry: parseDate(row["CICPA Expiry"] || row["CICPA Pass Expiry"]),
           },
         },
-        status: sanitizedStatus,
+        status: EMPLOYEE_STATUS.AVAILABLE,
       };
 
       // Perform Upsert (Insert if new, update basic info if existing)
@@ -232,23 +288,23 @@ export const importEmployeesFromExcel = async (req, res) => {
         }
       }
 
-      bulkOperations.push({
-        updateOne: {
-          filter: { employeeId: employeeDoc.employeeId },
-          update: { $set: setFields },
-          upsert: true,
-        },
-      });
-    }
-
-    if (bulkOperations.length > 0) {
-      await Employee.bulkWrite(bulkOperations);
+      try {
+        await Employee.findOneAndUpdate(
+          { employeeId: employeeDoc.employeeId },
+          { $set: setFields },
+          { upsert: true, runValidators: true, setDefaultsOnInsert: true },
+        );
+        processedCount++;
+      } catch (saveErr) {
+        errors.push(`Row ${rowNum} (${empId}): ${saveErr.message}`);
+      }
     }
 
     res.status(200).json({
-      message: "Bulk import completed successfully.",
-      processedCount: bulkOperations.length,
+      message: "Bulk import completed.",
+      processedCount,
       skippedCount,
+      errors,
     });
   } catch (error) {
     res
@@ -262,7 +318,24 @@ export const importEmployeesFromExcel = async (req, res) => {
 // @access  Protected (Level 2 or higher)
 export const updateEmployee = async (req, res) => {
   try {
-    const { employeeId, ...updateData } = req.body; // strip employeeId from updates
+    const { employeeId, specialization, trade, ...updateData } = req.body; // strip employeeId from updates
+
+    // Resolve trade: use provided value or fall back to the stored value
+    const targetTrade =
+      trade ?? (await Employee.findById(req.params.id).select("trade"))?.trade;
+
+    let resolvedSpec;
+    try {
+      resolvedSpec = await resolveSpecialization(specialization, targetTrade);
+    } catch (msg) {
+      return res.status(400).json({ message: msg });
+    }
+
+    const payload = { ...updateData };
+    if (trade) payload.trade = trade;
+    // Always write specialization (null clears it)
+    payload.specialization = resolvedSpec;
+
     const employee = await Employee.findByIdAndUpdate(
       req.params.id,
       { $set: updateData },
