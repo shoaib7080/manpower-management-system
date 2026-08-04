@@ -87,6 +87,8 @@ export const importJobOrdersFromExcel = async (req, res) => {
     const rawRows = xlsx.utils.sheet_to_json(
       workbook.Sheets[workbook.SheetNames[0]],
     );
+    console.log("Total rows parsed:", rawRows.length);
+    console.log("First row sample:", rawRows[0]); // see exact column names & values
 
     if (!rawRows?.length)
       return res
@@ -158,6 +160,13 @@ export const importJobOrdersFromExcel = async (req, res) => {
             mobDate: null,
             demobDate: null,
           });
+          console.log("Attempting to save:", {
+            jobOrderNumber,
+            siteName,
+            clientCategory,
+            startDate,
+            requirements,
+          });
         }
       });
 
@@ -183,6 +192,7 @@ export const importJobOrdersFromExcel = async (req, res) => {
       errors,
     });
   } catch (error) {
+    console.error("Import error full details:", error);
     res
       .status(500)
       .json({ message: "Job order import failed", error: error.message });
