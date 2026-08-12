@@ -34,3 +34,11 @@ export const getSpecializations = (trade) =>
   api.get("/specializations", { params: trade ? { trade } : {} });
 export const createSpecialization = (payload) =>
   api.post("/specializations", payload);
+export const deactivateSpecialization = (id) =>
+  api.patch(`/specializations/${id}/deactivate`);
+
+export const getUsers = () => api.get("/auth/users");
+export const createUser = (payload) => api.post("/auth/register", payload);
+export const deleteUser = (id) => api.delete(`/auth/users/${id}`);
+export const updateUser = (id, payload) =>
+  api.put(`/auth/users/${id}`, payload);

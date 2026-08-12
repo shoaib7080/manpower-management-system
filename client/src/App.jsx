@@ -10,6 +10,8 @@ import DirectoryPage from "./pages/DirectoryPage";
 import ErrorPage, { PageErrorElement } from "./pages/ErrorPage";
 import JobOrdersPage from "./pages/JobOrdersPage";
 import LoginPage from "./pages/LoginPage";
+import SpecializationsPage from "./pages/SpecializationsPage";
+import UsersPage from "./pages/UserPage";
 
 const router = createBrowserRouter([
   {
@@ -31,6 +33,16 @@ const router = createBrowserRouter([
       {
         path: "audit-log",
         element: <AuditLogPage />,
+        errorElement: <PageErrorElement />,
+      },
+      {
+        path: "users",
+        element: <UsersPage />,
+        errorElement: <PageErrorElement />,
+      },
+      {
+        path: "specializations",
+        element: <SpecializationsPage />,
         errorElement: <PageErrorElement />,
       },
     ],

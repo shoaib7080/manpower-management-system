@@ -40,6 +40,23 @@ export default function Sidebar() {
         Audit Trail
       </NavLink>
 
+      {user?.level === 1 && (
+        <>
+          <NavLink
+            to="/users"
+            className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}
+          >
+            User Management
+          </NavLink>
+          <NavLink
+            to="/specializations"
+            className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}
+          >
+            Specializations
+          </NavLink>
+        </>
+      )}
+
       <div className="sidebar-footer">
         <div className="pipeline-legend">Mobilisation Pipeline</div>
         {LEGEND.map(([color, label]) => (

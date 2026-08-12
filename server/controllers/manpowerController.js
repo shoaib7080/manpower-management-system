@@ -1,5 +1,5 @@
 import xlsx from "xlsx";
-import { EMPLOYEE_STATUS } from "../config/constants.js";
+import { EMPLOYEE_STATUS, TRADES } from "../config/constants.js";
 import Employee from "../models/Employee.js";
 import Specialization from "../models/Specialization.js";
 import parseDate from "../utils/parseDate.js";
@@ -338,7 +338,7 @@ export const updateEmployee = async (req, res) => {
 
     const employee = await Employee.findByIdAndUpdate(
       req.params.id,
-      { $set: updateData },
+      { $set: payload },
       { new: true, runValidators: true },
     );
     if (!employee)
