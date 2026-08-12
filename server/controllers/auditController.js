@@ -1,9 +1,9 @@
-import AuditLog from '../models/AuditLog.js';
+import AuditLog from "../models/AuditLog.js";
 
 // @desc    Get audit trail logs (filterable by employeeId)
 // @route   GET /api/audit-logs
 // @access  Protected
-export const getAuditLogs = async (req, res) => {
+export const getAuditLogs = async (req, res, next) => {
   try {
     const { employeeId } = req.query;
     let query = {};
@@ -13,12 +13,12 @@ export const getAuditLogs = async (req, res) => {
     }
 
     const logs = await AuditLog.find(query)
-      .populate('updatedByUserId', 'name level')
+      .populate("updatedByUserId", "name level")
       .sort({ createdAt: -1 })
       .limit(100);
 
     res.status(200).json(logs);
   } catch (error) {
-    res.status(500).json({ message: 'Error fetching audit logs', error: error.message });
+    next(error);
   }
 };

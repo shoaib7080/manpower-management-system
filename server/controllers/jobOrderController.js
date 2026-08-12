@@ -15,7 +15,7 @@ const calculate90DayDemob = (startDate) => {
 // @desc    Create a new Job Order with auto-generated empty trade slots
 // @route   POST /api/job-orders
 // @access  Protected (Level 2 Engineer or Level 1 Admin)
-export const createJobOrder = async (req, res) => {
+export const createJobOrder = async (req, res, next) => {
   try {
     const {
       jobOrderNumber,
@@ -69,16 +69,14 @@ export const createJobOrder = async (req, res) => {
       .status(201)
       .json({ message: "Job Order created successfully", data: jobOrder });
   } catch (error) {
-    res
-      .status(500)
-      .json({ message: "Failed to create Job Order", error: error.message });
+    next(error);
   }
 };
 
 // @desc    Bulk Import Job Orders from Excel
 // @route   POST /api/job-orders/import
 // @access  Protected (Level 2 or higher)
-export const importJobOrdersFromExcel = async (req, res) => {
+export const importJobOrdersFromExcel = async (req, res, next) => {
   try {
     if (!req.file)
       return res.status(400).json({ message: "Please upload an Excel file." });
@@ -207,16 +205,14 @@ export const importJobOrdersFromExcel = async (req, res) => {
       errors,
     });
   } catch (error) {
-    res
-      .status(500)
-      .json({ message: "Job order import failed", error: error.message });
+    next(error);
   }
 };
 
 // @desc    Get all Job Orders with populated employee details in slots
 // @route   GET /api/job-orders
 // @access  Protected
-export const getJobOrders = async (req, res) => {
+export const getJobOrders = async (req, res, next) => {
   try {
     const { status, siteName } = req.query;
     let query = {};
@@ -233,16 +229,14 @@ export const getJobOrders = async (req, res) => {
 
     res.status(200).json(jobOrders);
   } catch (error) {
-    res
-      .status(500)
-      .json({ message: "Error fetching Job Orders", error: error.message });
+    next(error);
   }
 };
 
 // @desc    Auto-Suggestion Engine for Empty Trade Slots
 // @route   GET /api/job-orders/suggest
 // @access  Protected
-export const getSlotSuggestions = async (req, res) => {
+export const getSlotSuggestions = async (req, res, next) => {
   try {
     const { trade, clientCategory } = req.query;
 
@@ -296,17 +290,14 @@ export const getSlotSuggestions = async (req, res) => {
       suggestions: availableCandidates,
     });
   } catch (error) {
-    res.status(500).json({
-      message: "Error running suggestion engine",
-      error: error.message,
-    });
+    next(error);
   }
 };
 
 // @desc    Advance worker through pipeline (RESERVED -> BOOKED -> MOBILIZED)
 // @route   PUT /api/job-orders/:id/update-slot-pipeline
 // @access  Protected
-export const updateSlotPipeline = async (req, res) => {
+export const updateSlotPipeline = async (req, res, next) => {
   try {
     const { id: jobOrderId } = req.params;
     const { slotId, targetStatus, reasonForChange, authorizedBy } = req.body;
@@ -383,16 +374,14 @@ export const updateSlotPipeline = async (req, res) => {
       employee,
     });
   } catch (error) {
-    res
-      .status(500)
-      .json({ message: "Pipeline transition failed", error: error.message });
+    next(error);
   }
 };
 
 // @desc    Assign Employee to Slot with ENFORCED Audit Verification
 // @route   PUT /api/job-orders/:id/assign-slot
 // @access  Protected (Level 2 or Level 1)
-export const assignEmployeeToSlot = async (req, res) => {
+export const assignEmployeeToSlot = async (req, res, next) => {
   try {
     const { id: jobOrderId } = req.params;
     const {
@@ -501,16 +490,14 @@ export const assignEmployeeToSlot = async (req, res) => {
       auditLog: auditEntry,
     });
   } catch (error) {
-    res
-      .status(500)
-      .json({ message: "Slot assignment failed", error: error.message });
+    next(error);
   }
 };
 
 // @desc    Release / Demobilize Employee from Slot
 // @route   PUT /api/job-orders/:id/release-slot
 // @access  Protected
-export const releaseEmployeeFromSlot = async (req, res) => {
+export const releaseEmployeeFromSlot = async (req, res, next) => {
   try {
     const { id: jobOrderId } = req.params;
     const { slotId, reasonForChange, authorizedBy, newStatus } = req.body;
@@ -574,8 +561,6 @@ export const releaseEmployeeFromSlot = async (req, res) => {
       .status(200)
       .json({ message: "Employee demobilized and slot cleared successfully." });
   } catch (error) {
-    res
-      .status(500)
-      .json({ message: "Demobilization failed", error: error.message });
+    next(error);
   }
 };

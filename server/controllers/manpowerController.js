@@ -11,7 +11,7 @@ async function resolveSpecialization(raw, trade) {
   const normalized = String(raw).trim().toLowerCase();
   const found = await Specialization.findOne({
     nameLower: normalized,
-    trade,
+    trades: trade,
     active: true,
   });
   if (!found)
@@ -22,7 +22,7 @@ async function resolveSpecialization(raw, trade) {
 // @desc    Get all manpower with multi-trade, status & training compliance filters
 // @route   GET /api/manpower
 // @access  Protected
-export const getEmployees = async (req, res) => {
+export const getEmployees = async (req, res, next) => {
   try {
     const { trade, status, compliance, search } = req.query;
     let query = {};
@@ -118,16 +118,14 @@ export const getEmployees = async (req, res) => {
 
     res.status(200).json({ summary, employees });
   } catch (error) {
-    res
-      .status(500)
-      .json({ message: "Error fetching employees", error: error.message });
+    next(error);
   }
 };
 
 // @desc    Create single new employee record
 // @route   POST /api/manpower
 // @access  Protected (Level 2 or higher)
-export const createEmployee = async (req, res) => {
+export const createEmployee = async (req, res, next) => {
   try {
     const { employeeId, emiratesId, specialization, trade } = req.body;
 
@@ -159,16 +157,14 @@ export const createEmployee = async (req, res) => {
       .status(201)
       .json({ message: "Employee created successfully", data: newEmployee });
   } catch (error) {
-    res
-      .status(500)
-      .json({ message: "Failed to create employee", error: error.message });
+    next(error);
   }
 };
 
 // @desc    Bulk Import & Clean Legacy Excel Data
 // @route   POST /api/manpower/import
 // @access  Protected (Level 1 Admin Only)
-export const importEmployeesFromExcel = async (req, res) => {
+export const importEmployeesFromExcel = async (req, res, next) => {
   try {
     if (!req.file) {
       return res.status(400).json({ message: "Please upload an Excel file." });
@@ -224,7 +220,7 @@ export const importEmployeesFromExcel = async (req, res) => {
         : "";
       if (rawSpec) {
         const specEntry = specMap.get(rawSpec.toLowerCase());
-        if (!specEntry || specEntry.trade !== rawTrade) {
+        if (!specEntry || !specEntry.trades.includes(rawTrade)) {
           errors.push(
             `Row ${rowNum} (${empId}): "${rawSpec}" is not a recognized specialization for trade "${rawTrade}". Add it to the specialization list first.`,
           );
@@ -307,16 +303,14 @@ export const importEmployeesFromExcel = async (req, res) => {
       errors,
     });
   } catch (error) {
-    res
-      .status(500)
-      .json({ message: "Excel import failed", error: error.message });
+    next(error);
   }
 };
 
 // @desc    Update employee record (all fields except employeeId)
 // @route   PUT /api/manpower/:id
 // @access  Protected (Level 2 or higher)
-export const updateEmployee = async (req, res) => {
+export const updateEmployee = async (req, res, next) => {
   try {
     const { employeeId, specialization, trade, ...updateData } = req.body; // strip employeeId from updates
 
@@ -347,16 +341,14 @@ export const updateEmployee = async (req, res) => {
       .status(200)
       .json({ message: "Employee updated successfully.", data: employee });
   } catch (error) {
-    res
-      .status(500)
-      .json({ message: "Failed to update employee", error: error.message });
+    next(error);
   }
 };
 
 // @desc    Delete employee record
 // @route   DELETE /api/manpower/:id
 // @access  Protected (Level 1 Admin only)
-export const deleteEmployee = async (req, res) => {
+export const deleteEmployee = async (req, res, next) => {
   try {
     const employee = await Employee.findByIdAndDelete(req.params.id);
     if (!employee)
@@ -365,8 +357,6 @@ export const deleteEmployee = async (req, res) => {
       .status(200)
       .json({ message: `Employee ${employee.name} deleted successfully.` });
   } catch (error) {
-    res
-      .status(500)
-      .json({ message: "Failed to delete employee", error: error.message });
+    next(error);
   }
 };
