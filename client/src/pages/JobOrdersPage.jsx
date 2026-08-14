@@ -6,6 +6,30 @@ import JobOrderImportModal from "../components/jobOrders/JobOrderImportModal";
 import StatusBadge from "../components/StatusBadge";
 import useDashboardStore, { STAGES } from "../store/useDashboardStore";
 
+const btnBase =
+  "inline-flex items-center gap-1.5 px-3.5 py-2 rounded text-label-md whitespace-nowrap";
+const btnOutline = `${btnBase} border border-outline-variant bg-surface-container-lowest text-on-surface hover:bg-surface-container-low`;
+const btnPrimary = `${btnBase} bg-primary-container text-on-primary font-semibold hover:bg-primary`;
+const iconBtn =
+  "px-2.5 py-1.5 rounded border border-outline-variant bg-surface-container-lowest text-label-sm text-on-surface-variant hover:bg-surface-container-low";
+
+// Job-order health isn't a stored field — derived from fulfillment so the
+// badge means something real rather than an invented status. Kept to three
+// states with clear, checkable criteria (not a fabricated "critical"
+// threshold based on dates we'd otherwise have to guess at).
+function healthBadge(filled, total, mobilized) {
+  if (total > 0 && filled === total)
+    return ["FULFILLED", "bg-green-50 text-green-700 border-green-200"];
+  if (mobilized > 0)
+    return [
+      "MOBILIZING",
+      "bg-[#eff4ff] text-primary-container border-primary-container/20",
+    ];
+  if (filled === 0)
+    return ["PLANNING", "bg-surface-container-low text-on-surface-variant border-outline-variant"];
+  return ["IN PROGRESS", "bg-amber-50 text-amber-700 border-amber-200"];
+}
+
 export default function JobOrdersPage() {
   const qc = useQueryClient();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -29,37 +53,35 @@ export default function JobOrdersPage() {
 
   return (
     <div>
-      <div className="topbar">
+      <div className="flex items-start justify-between gap-5 flex-wrap mb-1">
         <div>
-          <h1>Job Order &amp; Site Fulfillment</h1>
-          <div className="sub">
+          <h1 className="text-headline-sm text-on-background">
+            Job Order &amp; Site Fulfillment
+          </h1>
+          <div className="text-body-sm text-on-surface-variant mt-1">
             Expand any job order to manage trade slots and mobilise personnel.
           </div>
         </div>
-        <div className="btn-row">
-          <button
-            className="btn btn-outline"
-            onClick={() => setImportOpen(true)}
-          >
+        <div className="flex gap-2 shrink-0">
+          <button className={btnOutline} onClick={() => setImportOpen(true)}>
             ↑ Import Excel Data
           </button>
-          <button
-            className="btn btn-primary"
-            onClick={() => setIsCreateOpen(true)}
-          >
+          <button className={btnPrimary} onClick={() => setIsCreateOpen(true)}>
             + Create Job Order
           </button>
         </div>
       </div>
 
       {isLoading ? (
-        <div className="empty-state">Loading job orders…</div>
+        <div className="text-center text-outline text-body-sm py-8">
+          Loading job orders…
+        </div>
       ) : jobOrders.length === 0 ? (
-        <div className="empty-state">
+        <div className="text-center text-outline text-body-sm py-8">
           No job orders found. Create one to get started.
         </div>
       ) : (
-        <div className="jo-grid">
+        <div className="flex flex-col gap-3 mt-4">
           {jobOrders.map((jo) => (
             <JobOrderCard key={jo._id} jo={jo} />
           ))}
@@ -86,8 +108,8 @@ function JobOrderCard({ jo }) {
   const filled = jo.slots.filter((s) => s.status !== "UNASSIGNED").length;
   const mobilized = jo.slots.filter((s) => s.status === "MOBILIZED").length;
   const pct = total > 0 ? Math.round((filled / total) * 100) : 0;
+  const [healthLabel, healthCls] = healthBadge(filled, total, mobilized);
 
-  // Group slots by trade for the expanded view
   const byTrade = jo.slots.reduce((acc, slot, idx) => {
     if (!acc[slot.trade]) acc[slot.trade] = [];
     acc[slot.trade].push({ ...slot, _idx: idx });
@@ -95,86 +117,74 @@ function JobOrderCard({ jo }) {
   }, {});
 
   return (
-    <div className="jo-card">
-      {/* ── Collapsed header — always visible ── */}
-      <div className="jo-card-head">
-        <div className="jo-head-top">
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div className="jo-id">{jo.jobOrderNumber}</div>
-            <div className="jo-title">{jo.siteName}</div>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                marginTop: 5,
-                flexWrap: "wrap",
-              }}
-            >
-              <span className="jo-client">{jo.clientCategory}</span>
-              <span style={{ fontSize: 11, color: "var(--text-2)" }}>
+    <div className="bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden">
+      <div className="p-4">
+        <div className="flex justify-between items-start gap-4 flex-wrap">
+          <div className="flex-1 min-w-0">
+            <div className="font-mono-data text-label-sm text-on-surface-variant">
+              {jo.jobOrderNumber}
+            </div>
+            <h4 className="text-headline-sm text-on-surface mt-0.5">
+              {jo.siteName}
+            </h4>
+            <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+              <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-primary-container/10 text-primary-container">
+                {jo.clientCategory}
+              </span>
+              <span className="text-label-sm text-on-surface-variant">
                 Eng: {jo.projectEngineer}
               </span>
             </div>
           </div>
 
-          {/* Right side: stats + toggle */}
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "flex-end",
-              gap: 8,
-              flexShrink: 0,
-            }}
-          >
-            <div style={{ display: "flex", gap: 6 }}>
-              <Pill
-                color="var(--teal)"
-                bg="var(--green-bg)"
-                label={`${mobilized} Mobilized`}
-              />
-              <Pill
-                color="var(--text-2)"
-                bg="var(--gray-bg)"
-                label={`${total - filled} Open`}
-              />
+          <div className="flex flex-col items-end gap-2 shrink-0">
+            <div className="flex items-center gap-2">
+              <span
+                className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold border ${healthCls}`}
+              >
+                {healthLabel}
+              </span>
+              <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-surface-container-low text-on-surface-variant border border-outline-variant">
+                {total - filled} Open
+              </span>
             </div>
             <button
-              className="jo-toggle"
+              className="inline-flex items-center gap-1.5 border border-outline-variant bg-surface-container-lowest rounded px-2.5 py-1.5 text-label-sm text-on-surface-variant hover:bg-surface-container-low"
               onClick={() => setExpanded((v) => !v)}
             >
               {expanded ? "Hide Slots" : "Manage Slots"}
-              <span className="chev">{expanded ? "▲" : "▼"}</span>
+              <span className="text-[9px]">{expanded ? "▲" : "▼"}</span>
             </button>
           </div>
         </div>
 
-        <div className="jo-dates">
+        <div className="flex gap-5 mt-2.5 text-label-sm text-on-surface-variant flex-wrap">
           <div>
-            Mob: <b>{jo.startDate ? fmt(jo.startDate) : "—"}</b>
+            Mob: <b className="text-on-surface font-semibold">{jo.startDate ? fmt(jo.startDate) : "—"}</b>
           </div>
           <div>
-            Demob: <b>{jo.targetDemobDate ? fmt(jo.targetDemobDate) : "—"}</b>
+            Demob: <b className="text-on-surface font-semibold">{jo.targetDemobDate ? fmt(jo.targetDemobDate) : "—"}</b>
           </div>
         </div>
 
-        <div className="progress-wrap">
-          <div className="progress-top">
-            <span>Team Fulfillment</span>
-            <span>
+        <div className="mt-3 space-y-2">
+          <div className="flex justify-between font-label-md text-label-md">
+            <span className="text-on-surface">Team Fulfillment</span>
+            <span className="text-primary-container">
               {filled} / {total} filled ({pct}%)
             </span>
           </div>
-          <div className="progress-bar">
-            <div className="progress-fill" style={{ width: `${pct}%` }} />
+          <div className="w-full bg-surface-container-high rounded-full h-2">
+            <div
+              className="bg-primary-container h-2 rounded-full"
+              style={{ width: `${pct}%` }}
+            />
           </div>
         </div>
       </div>
 
-      {/* ── Expanded slot section ── */}
       {expanded && (
-        <div style={{ borderTop: "1px solid var(--line)" }}>
+        <div className="border-t border-outline-variant">
           {Object.entries(byTrade).map(([trade, slots]) => (
             <TradeGroup key={trade} trade={trade} slots={slots} joId={jo._id} />
           ))}
@@ -188,37 +198,17 @@ function TradeGroup({ trade, slots, joId }) {
   const filled = slots.filter((s) => s.status !== "UNASSIGNED").length;
 
   return (
-    <div style={{ borderBottom: "1px solid var(--line)" }}>
-      {/* Trade header row */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          padding: "9px 16px",
-          background: "var(--paper)",
-        }}
-      >
-        <span
-          style={{
-            fontSize: 11,
-            fontWeight: 600,
-            color: "var(--text-2)",
-            letterSpacing: ".03em",
-          }}
-        >
-          {trade.toUpperCase()}
+    <div className="border-b border-outline-variant last:border-b-0">
+      <div className="flex items-center justify-between px-4 py-2 bg-surface-container-low">
+        <span className="text-label-sm uppercase text-on-surface-variant">
+          {trade}
         </span>
-        <span style={{ fontSize: 11, color: "var(--text-3)" }}>
+        <span className="text-label-sm text-outline">
           {filled} / {slots.length} filled
         </span>
       </div>
 
-      {/* Slot cards for this trade */}
-      <div
-        className="slot-grid"
-        style={{ borderTop: "none", marginTop: 0, paddingTop: 12 }}
-      >
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-2 p-3">
         {slots.map((slot) => (
           <Slot key={slot._id} joId={joId} slot={slot} slotIdx={slot._idx} />
         ))}
@@ -239,16 +229,18 @@ function Slot({ joId, slot, slotIdx }) {
 
   if (isUnassigned) {
     return (
-      <div className="slot empty">
-        <div className="slot-top">
+      <div className="border border-dashed border-outline-variant rounded-lg p-2.5 bg-surface-container-low flex flex-col gap-2">
+        <div className="flex justify-between items-start gap-2">
           <div>
-            <div className="slot-trade">Slot {slot.slotNumber}</div>
-            <div className="slot-placeholder">Unassigned</div>
+            <div className="text-label-sm uppercase text-on-surface-variant">
+              Slot {slot.slotNumber}
+            </div>
+            <div className="text-body-sm text-outline mt-0.5">Unassigned</div>
           </div>
           <StatusBadge status="AVAILABLE" />
         </div>
         <button
-          className="btn-suggest"
+          className="w-full py-2 rounded border border-dashed border-outline-variant text-primary-container font-semibold text-label-sm hover:bg-primary-container/10 hover:border-primary-container"
           onClick={() => openDrawer(joId, slotIdx, slot._id)}
         >
           ⚡ Auto-Suggest
@@ -258,16 +250,19 @@ function Slot({ joId, slot, slotIdx }) {
   }
 
   return (
-    <div className={`slot${locked ? " locked" : ""}`}>
-      <div className="slot-top">
+    <div
+      className={`border rounded-lg p-2.5 bg-surface-container-lowest flex flex-col gap-2 ${locked ? "border-on-surface-variant" : "border-outline-variant"}`}
+    >
+      <div className="flex justify-between items-start gap-2">
         <div>
-          <div className="slot-trade">Slot {slot.slotNumber}</div>
-          <div className="slot-worker">{emp?.name || "—"}</div>
+          <div className="text-label-sm uppercase text-on-surface-variant">
+            Slot {slot.slotNumber}
+          </div>
+          <div className="font-semibold text-body-sm text-on-surface mt-0.5">
+            {emp?.name || "—"}
+          </div>
           {emp?.employeeId && (
-            <div
-              className="mono"
-              style={{ fontSize: 10.5, color: "var(--text-3)", marginTop: 1 }}
-            >
+            <div className="font-mono-data text-[10.5px] text-outline mt-0.5">
               {emp.employeeId}
             </div>
           )}
@@ -276,17 +271,26 @@ function Slot({ joId, slot, slotIdx }) {
       </div>
 
       <div>
-        <div className="stepper">
+        <div className="flex items-center gap-0.5">
           {STAGES.map((_, i) => (
             <div
               key={i}
-              className={`step${i < stageIdx ? " done" : i === stageIdx ? " current" : ""}`}
+              className={`flex-1 h-1 rounded-full ${
+                i < stageIdx
+                  ? "bg-indigo-500"
+                  : i === stageIdx
+                    ? "bg-primary-container"
+                    : "bg-surface-container-high"
+              }`}
             />
           ))}
         </div>
-        <div className="stepper-labels">
+        <div className="flex justify-between text-[8.5px] font-semibold text-outline mt-1">
           {STAGES.map((st, i) => (
-            <span key={st} className={i === stageIdx ? "active" : ""}>
+            <span
+              key={st}
+              className={i === stageIdx ? "text-primary-container" : ""}
+            >
               {st[0]}
               {st.slice(1, 3).toLowerCase()}
             </span>
@@ -294,22 +298,21 @@ function Slot({ joId, slot, slotIdx }) {
         </div>
       </div>
 
-      <div className="slot-actions">
+      <div className="flex gap-1.5">
         {stageIdx < STAGES.length - 1 ? (
           <button
-            className="btn btn-outline btn-sm"
-            style={{ flex: 1 }}
+            className="flex-1 border border-outline-variant bg-surface-container-lowest rounded px-2.5 py-1.5 text-label-sm text-on-surface hover:bg-surface-container-low"
             onClick={() => requestAdvance(joId, slot._id, emp, slot.status)}
           >
             → {STAGES[stageIdx + 1]}
           </button>
         ) : (
-          <span className="lock-tag" style={{ flex: 1 }}>
+          <span className="flex-1 text-center text-label-sm text-on-surface-variant font-semibold self-center">
             ✓ Mobilized
           </span>
         )}
         <button
-          className="icon-btn"
+          className={iconBtn}
           title="Release worker"
           onClick={() => requestSwap(joId, slot._id, emp, slot.status)}
         >
@@ -317,24 +320,6 @@ function Slot({ joId, slot, slotIdx }) {
         </button>
       </div>
     </div>
-  );
-}
-
-// Small inline pill for the card header stats
-function Pill({ color, bg, label }) {
-  return (
-    <span
-      style={{
-        fontSize: 10.5,
-        fontWeight: 600,
-        color,
-        background: bg,
-        padding: "2px 8px",
-        borderRadius: 3,
-      }}
-    >
-      {label}
-    </span>
   );
 }
 

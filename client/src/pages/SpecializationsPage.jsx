@@ -6,8 +6,32 @@ import {
   getSpecializations,
 } from "../api/services";
 import { TRADES } from "../components/manpower/employeeUtils";
+import {
+  Field,
+  ModalBody,
+  ModalFoot,
+  ModalHead,
+  ModalShell,
+  Overlay,
+  WarnBox,
+  btnOutline,
+  btnPrimary,
+  iconBtn,
+  inputCls,
+} from "../components/ui/Modal";
 
 const EMPTY = { name: "", trade: TRADES[0] };
+
+const pillCls = (active) =>
+  `px-2.5 py-1.5 rounded text-label-sm font-medium border whitespace-nowrap ${
+    active
+      ? "bg-primary-container text-on-primary border-primary-container font-semibold"
+      : "bg-surface-container-lowest text-on-surface-variant border-outline-variant hover:bg-surface-container-low"
+  }`;
+
+const th =
+  "text-left text-label-sm uppercase text-on-surface-variant bg-surface-container-low px-3.5 py-2.5 border-b border-outline-variant whitespace-nowrap";
+const td = "px-3.5 py-2.5 border-b border-outline-variant align-middle";
 
 export default function SpecializationsPage() {
   const qc = useQueryClient();
@@ -39,16 +63,18 @@ export default function SpecializationsPage() {
 
   return (
     <div>
-      <div className="topbar">
+      <div className="flex items-start justify-between gap-5 flex-wrap mb-1">
         <div>
-          <h1>Specializations</h1>
-          <div className="sub">
+          <h1 className="text-headline-sm text-on-background">
+            Specializations
+          </h1>
+          <div className="text-body-sm text-on-surface-variant mt-1">
             Admin-managed lookup list. Used to validate employee specialization
             on create, update, and import.
           </div>
         </div>
         <button
-          className="btn btn-primary"
+          className={btnPrimary}
           onClick={() => {
             setModalOpen(true);
             setError("");
@@ -58,12 +84,13 @@ export default function SpecializationsPage() {
         </button>
       </div>
 
-      {/* Trade filter pills */}
-      <div className="filter-bar" style={{ marginTop: 20 }}>
-        <div className="filter-row">
-          <span className="filter-label">Trade</span>
+      <div className="bg-surface-container-lowest border border-outline-variant rounded-xl p-3 mt-5">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-label-sm uppercase text-on-surface-variant mr-1">
+            Trade
+          </span>
           <button
-            className={`tab-pill${tradeFilter === "" ? " active" : ""}`}
+            className={pillCls(tradeFilter === "")}
             onClick={() => setTradeFilter("")}
           >
             All
@@ -71,7 +98,7 @@ export default function SpecializationsPage() {
           {TRADES.map((t) => (
             <button
               key={t}
-              className={`tab-pill${tradeFilter === t ? " active" : ""}`}
+              className={pillCls(tradeFilter === t)}
               onClick={() => setTradeFilter(t)}
             >
               {t}
@@ -80,31 +107,37 @@ export default function SpecializationsPage() {
         </div>
       </div>
 
-      <div className="table-wrap" style={{ marginTop: 14 }}>
+      <div className="bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden mt-3.5">
         {isLoading ? (
-          <div className="empty-state">Loading…</div>
+          <div className="text-center text-outline text-body-sm py-8">
+            Loading…
+          </div>
         ) : (
-          <table>
+          <table className="w-full border-collapse">
             <thead>
               <tr>
-                <th>Name</th>
-                <th>Trade</th>
-                <th>Created</th>
-                <th />
+                {["Name", "Trade", "Created", ""].map((h) => (
+                  <th key={h} className={th}>
+                    {h}
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody>
               {specs.map((s) => (
-                <tr key={s._id}>
-                  <td className="emp-name">{s.name}</td>
-                  <td style={{ color: "var(--text-2)" }}>{s.trade}</td>
-                  <td style={{ color: "var(--text-2)", fontSize: 12 }}>
+                <tr key={s._id} className="hover:bg-surface-container-low">
+                  <td className={`${td} font-semibold text-on-surface text-body-sm`}>
+                    {s.name}
+                  </td>
+                  <td className={`${td} text-body-sm text-on-surface-variant`}>
+                    {s.trade}
+                  </td>
+                  <td className={`${td} text-body-sm text-on-surface-variant`}>
                     {new Date(s.createdAt).toLocaleDateString()}
                   </td>
-                  <td>
+                  <td className={td}>
                     <button
-                      className="icon-btn"
-                      style={{ color: "var(--red)", borderColor: "var(--red)" }}
+                      className={`${iconBtn} text-error border-error hover:bg-error-container/20`}
                       disabled={deactivateMutation.isPending}
                       onClick={() =>
                         window.confirm(`Deactivate "${s.name}"?`) &&
@@ -120,55 +153,39 @@ export default function SpecializationsPage() {
           </table>
         )}
         {!isLoading && specs.length === 0 && (
-          <div className="empty-state">
+          <div className="text-center text-outline text-body-sm py-8">
             No active specializations{tradeFilter ? ` for ${tradeFilter}` : ""}.
           </div>
         )}
       </div>
 
       {modalOpen && (
-        <div className="overlay show">
-          <div className="modal">
-            <div className="modal-head">
-              <h3>New Specialization</h3>
-              <button
-                className="modal-close"
-                onClick={() => setModalOpen(false)}
-              >
-                ✕
-              </button>
-            </div>
+        <Overlay>
+          <ModalShell>
+            <ModalHead
+              title="New Specialization"
+              onClose={() => setModalOpen(false)}
+            />
             <form
               onSubmit={(e) => {
                 e.preventDefault();
                 createMutation.mutate(form);
               }}
             >
-              <div className="modal-body">
-                {error && (
-                  <div className="warn-box" style={{ marginBottom: 12 }}>
-                    <div className="warn-label">Error</div>
-                    <p>{error}</p>
-                  </div>
-                )}
-                <div className="field">
-                  <label>
-                    Name <span className="req">*</span>
-                  </label>
+              <ModalBody>
+                {error && <WarnBox>{error}</WarnBox>}
+                <Field label="Name" required>
                   <input
-                    className="ff"
+                    className={inputCls}
                     required
                     value={form.name}
                     onChange={(e) => setForm({ ...form, name: e.target.value })}
                     placeholder="e.g. Spray Painter"
                   />
-                </div>
-                <div className="field">
-                  <label>
-                    Trade <span className="req">*</span>
-                  </label>
+                </Field>
+                <Field label="Trade" required>
                   <select
-                    className="ff"
+                    className={inputCls}
                     value={form.trade}
                     onChange={(e) =>
                       setForm({ ...form, trade: e.target.value })
@@ -180,27 +197,27 @@ export default function SpecializationsPage() {
                       </option>
                     ))}
                   </select>
-                </div>
-              </div>
-              <div className="modal-foot">
+                </Field>
+              </ModalBody>
+              <ModalFoot>
                 <button
                   type="button"
-                  className="btn btn-outline"
+                  className={btnOutline}
                   onClick={() => setModalOpen(false)}
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="btn btn-primary"
+                  className={btnPrimary}
                   disabled={createMutation.isPending}
                 >
                   {createMutation.isPending ? "Creating…" : "Create"}
                 </button>
-              </div>
+              </ModalFoot>
             </form>
-          </div>
-        </div>
+          </ModalShell>
+        </Overlay>
       )}
     </div>
   );

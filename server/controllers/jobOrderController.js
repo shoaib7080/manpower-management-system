@@ -5,11 +5,10 @@ import Employee from "../models/Employee.js";
 import JobOrder from "../models/JobOrder.js";
 import parseDate from "../utils/parseDate.js";
 
-// Helper: Calculate default 90-day demobilization date
-const calculate90DayDemob = (startDate) => {
-  const date = new Date(startDate);
-  date.setDate(date.getDate() + 90);
-  return date;
+const calculate90DayDemob = (date) => {
+  const d = new Date(date);
+  d.setDate(d.getDate() + 90);
+  return d;
 };
 
 // @desc    Create a new Job Order with auto-generated empty trade slots
@@ -34,9 +33,6 @@ export const createJobOrder = async (req, res, next) => {
         .json({ message: "Job Order Number already exists." });
     }
 
-    const start = new Date(startDate);
-    const targetDemobDate = calculate90DayDemob(start);
-
     // Auto-generate empty slots based on requirement quantities
     const generatedSlots = [];
     requirements.forEach((reqItem) => {
@@ -57,8 +53,7 @@ export const createJobOrder = async (req, res, next) => {
       siteName,
       clientCategory,
       projectEngineer,
-      startDate: start,
-      targetDemobDate,
+      startDate: startDate ? new Date(startDate) : null,
       requirements,
       slots: generatedSlots,
       status: "Active",
@@ -142,12 +137,6 @@ export const importJobOrdersFromExcel = async (req, res, next) => {
         );
         continue;
       }
-      if (!startDate) {
-        skipped.push(
-          `Row ${rowNum} (${jobOrderNumber}): missing or invalid Start Date — value was "${row["Start Date"] || row["Mob Date"] || "not found"}"`,
-        );
-        continue;
-      }
 
       const requirements = [];
       TRADE_COLS.forEach((trade) => {
@@ -176,8 +165,7 @@ export const importJobOrdersFromExcel = async (req, res, next) => {
           siteName,
           clientCategory,
           projectEngineer: projectEngineer || "TBD",
-          startDate,
-          targetDemobDate: calculate90DayDemob(startDate),
+          startDate: startDate || null,
           requirements,
           slots: requirements.flatMap(({ trade, requiredQty }) =>
             Array.from({ length: requiredQty }, (_, i) => ({

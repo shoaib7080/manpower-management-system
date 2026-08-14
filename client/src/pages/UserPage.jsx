@@ -1,6 +1,19 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { createUser, deleteUser, getUsers, updateUser } from "../api/services";
+import {
+  Field,
+  ModalBody,
+  ModalFoot,
+  ModalHead,
+  ModalShell,
+  Overlay,
+  WarnBox,
+  btnOutline,
+  btnPrimary,
+  iconBtn,
+  inputCls,
+} from "../components/ui/Modal";
 
 const LEVEL_LABELS = {
   1: "Admin",
@@ -10,6 +23,10 @@ const LEVEL_LABELS = {
 };
 
 const EMPTY = { name: "", email: "", password: "", level: 4 };
+
+const th =
+  "text-left text-label-sm uppercase text-on-surface-variant bg-surface-container-low px-3.5 py-2.5 border-b border-outline-variant whitespace-nowrap";
+const td = "px-3.5 py-2.5 border-b border-outline-variant align-middle";
 
 export default function UsersPage() {
   const qc = useQueryClient();
@@ -59,15 +76,17 @@ export default function UsersPage() {
 
   return (
     <div>
-      <div className="topbar">
+      <div className="flex items-start justify-between gap-5 flex-wrap mb-1">
         <div>
-          <h1>User Management</h1>
-          <div className="sub">
+          <h1 className="text-headline-sm text-on-background">
+            User Management
+          </h1>
+          <div className="text-body-sm text-on-surface-variant mt-1">
             Only Level 1 admins can create or remove users.
           </div>
         </div>
         <button
-          className="btn btn-primary"
+          className={btnPrimary}
           onClick={() => {
             setModalOpen(true);
             setError("");
@@ -77,39 +96,43 @@ export default function UsersPage() {
         </button>
       </div>
 
-      <div className="table-wrap" style={{ marginTop: 20 }}>
+      <div className="bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden mt-5">
         {isLoading ? (
-          <div className="empty-state">Loading users…</div>
+          <div className="text-center text-outline text-body-sm py-8">
+            Loading users…
+          </div>
         ) : (
-          <table>
+          <table className="w-full border-collapse">
             <thead>
               <tr>
-                <th>Name</th>
-                <th>Email</th>
-                <th>Level</th>
-                <th>Role</th>
-                <th>Created</th>
-                <th />
+                {["Name", "Email", "Level", "Role", "Created", ""].map((h) => (
+                  <th key={h} className={th}>
+                    {h}
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody>
               {users.map((u) => (
-                <tr key={u._id}>
-                  <td className="emp-name">{u.name}</td>
-                  <td className="mono" style={{ fontSize: 12 }}>
+                <tr key={u._id} className="hover:bg-surface-container-low">
+                  <td className={`${td} font-semibold text-on-surface text-body-sm`}>
+                    {u.name}
+                  </td>
+                  <td className={`${td} font-mono-data text-[12px]`}>
                     {u.email}
                   </td>
-                  <td>{u.level}</td>
-                  <td>{LEVEL_LABELS[u.level] || `Level ${u.level}`}</td>
-                  <td style={{ color: "var(--text-2)", fontSize: 12 }}>
+                  <td className={`${td} text-body-sm`}>{u.level}</td>
+                  <td className={`${td} text-body-sm`}>
+                    {LEVEL_LABELS[u.level] || `Level ${u.level}`}
+                  </td>
+                  <td className={`${td} text-body-sm text-on-surface-variant`}>
                     {new Date(u.createdAt).toLocaleDateString()}
                   </td>
-                  <td>
+                  <td className={`${td} whitespace-nowrap`}>
                     {u.level > 1 && (
                       <>
                         <button
-                          className="icon-btn"
-                          style={{ marginRight: 4 }}
+                          className={`${iconBtn} mr-1`}
                           onClick={() => {
                             setEditTarget(u);
                             setEditForm({
@@ -124,11 +147,7 @@ export default function UsersPage() {
                           Edit
                         </button>
                         <button
-                          className="icon-btn"
-                          style={{
-                            color: "var(--red)",
-                            borderColor: "var(--red)",
-                          }}
+                          className={`${iconBtn} text-error border-error hover:bg-error-container/20`}
                           onClick={() =>
                             window.confirm(`Delete ${u.name}?`) &&
                             deleteMutation.mutate(u._id)
@@ -147,42 +166,23 @@ export default function UsersPage() {
       </div>
 
       {modalOpen && (
-        <div className="overlay show">
-          <div className="modal">
-            <div className="modal-head">
-              <h3>Create New User</h3>
-              <button
-                className="modal-close"
-                onClick={() => setModalOpen(false)}
-              >
-                ✕
-              </button>
-            </div>
+        <Overlay>
+          <ModalShell>
+            <ModalHead title="Create New User" onClose={() => setModalOpen(false)} />
             <form onSubmit={handleSubmit}>
-              <div className="modal-body">
-                {error && (
-                  <div className="warn-box" style={{ marginBottom: 12 }}>
-                    <div className="warn-label">Error</div>
-                    <p>{error}</p>
-                  </div>
-                )}
-                <div className="field">
-                  <label>
-                    Full Name <span className="req">*</span>
-                  </label>
+              <ModalBody>
+                {error && <WarnBox>{error}</WarnBox>}
+                <Field label="Full Name" required>
                   <input
-                    className="ff"
+                    className={inputCls}
                     required
                     value={form.name}
                     onChange={(e) => setForm({ ...form, name: e.target.value })}
                   />
-                </div>
-                <div className="field">
-                  <label>
-                    Email <span className="req">*</span>
-                  </label>
+                </Field>
+                <Field label="Email" required>
                   <input
-                    className="ff"
+                    className={inputCls}
                     type="email"
                     required
                     value={form.email}
@@ -190,13 +190,10 @@ export default function UsersPage() {
                       setForm({ ...form, email: e.target.value })
                     }
                   />
-                </div>
-                <div className="field">
-                  <label>
-                    Password <span className="req">*</span>
-                  </label>
+                </Field>
+                <Field label="Password" required>
                   <input
-                    className="ff"
+                    className={inputCls}
                     type="password"
                     required
                     value={form.password}
@@ -204,11 +201,10 @@ export default function UsersPage() {
                       setForm({ ...form, password: e.target.value })
                     }
                   />
-                </div>
-                <div className="field">
-                  <label>Level</label>
+                </Field>
+                <Field label="Level">
                   <select
-                    className="ff"
+                    className={inputCls}
                     value={form.level}
                     onChange={(e) =>
                       setForm({ ...form, level: Number(e.target.value) })
@@ -218,41 +214,33 @@ export default function UsersPage() {
                     <option value={3}>3 — Production Supervisor</option>
                     <option value={4}>4 — Field User</option>
                   </select>
-                </div>
-              </div>
-              <div className="modal-foot">
+                </Field>
+              </ModalBody>
+              <ModalFoot>
                 <button
                   type="button"
-                  className="btn btn-outline"
+                  className={btnOutline}
                   onClick={() => setModalOpen(false)}
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="btn btn-primary"
+                  className={btnPrimary}
                   disabled={createMutation.isPending}
                 >
                   {createMutation.isPending ? "Creating…" : "Create User"}
                 </button>
-              </div>
+              </ModalFoot>
             </form>
-          </div>
-        </div>
+          </ModalShell>
+        </Overlay>
       )}
 
       {editTarget && (
-        <div className="overlay show">
-          <div className="modal">
-            <div className="modal-head">
-              <h3>Edit User</h3>
-              <button
-                className="modal-close"
-                onClick={() => setEditTarget(null)}
-              >
-                ✕
-              </button>
-            </div>
+        <Overlay>
+          <ModalShell>
+            <ModalHead title="Edit User" onClose={() => setEditTarget(null)} />
             <form
               onSubmit={(e) => {
                 e.preventDefault();
@@ -265,32 +253,21 @@ export default function UsersPage() {
                 updateMutation.mutate({ id: editTarget._id, payload: p });
               }}
             >
-              <div className="modal-body">
-                {error && (
-                  <div className="warn-box" style={{ marginBottom: 12 }}>
-                    <div className="warn-label">Error</div>
-                    <p>{error}</p>
-                  </div>
-                )}
-                <div className="field">
-                  <label>
-                    Full Name <span className="req">*</span>
-                  </label>
+              <ModalBody>
+                {error && <WarnBox>{error}</WarnBox>}
+                <Field label="Full Name" required>
                   <input
-                    className="ff"
+                    className={inputCls}
                     required
                     value={editForm.name}
                     onChange={(e) =>
                       setEditForm({ ...editForm, name: e.target.value })
                     }
                   />
-                </div>
-                <div className="field">
-                  <label>
-                    Email <span className="req">*</span>
-                  </label>
+                </Field>
+                <Field label="Email" required>
                   <input
-                    className="ff"
+                    className={inputCls}
                     type="email"
                     required
                     value={editForm.email}
@@ -298,27 +275,20 @@ export default function UsersPage() {
                       setEditForm({ ...editForm, email: e.target.value })
                     }
                   />
-                </div>
-                <div className="field">
-                  <label>
-                    New Password{" "}
-                    <span style={{ color: "var(--text-3)", fontWeight: 400 }}>
-                      (leave blank to keep current)
-                    </span>
-                  </label>
+                </Field>
+                <Field label="New Password" hint="(leave blank to keep current)">
                   <input
-                    className="ff"
+                    className={inputCls}
                     type="password"
                     value={editForm.password}
                     onChange={(e) =>
                       setEditForm({ ...editForm, password: e.target.value })
                     }
                   />
-                </div>
-                <div className="field">
-                  <label>Level</label>
+                </Field>
+                <Field label="Level">
                   <select
-                    className="ff"
+                    className={inputCls}
                     value={editForm.level}
                     onChange={(e) =>
                       setEditForm({
@@ -332,27 +302,27 @@ export default function UsersPage() {
                     <option value={3}>3 — Production Supervisor</option>
                     <option value={4}>4 — Field User</option>
                   </select>
-                </div>
-              </div>
-              <div className="modal-foot">
+                </Field>
+              </ModalBody>
+              <ModalFoot>
                 <button
                   type="button"
-                  className="btn btn-outline"
+                  className={btnOutline}
                   onClick={() => setEditTarget(null)}
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="btn btn-primary"
+                  className={btnPrimary}
                   disabled={updateMutation.isPending}
                 >
                   {updateMutation.isPending ? "Saving…" : "Save Changes"}
                 </button>
-              </div>
+              </ModalFoot>
             </form>
-          </div>
-        </div>
+          </ModalShell>
+        </Overlay>
       )}
     </div>
   );

@@ -22,69 +22,26 @@ function docLevel(doc) {
   return "green";
 }
 
+const DOC_BADGE_CLS = {
+  green: "bg-green-100 text-green-800 border-green-200",
+  yellow: "bg-amber-100 text-amber-800 border-amber-200",
+  red: "bg-red-100 text-red-800 border-red-200",
+  gray: "bg-surface-container-low text-outline border-outline-variant",
+};
+
 function DocBadge({ label, doc }) {
   const level = docLevel(doc);
-  const colors = {
-    green: {
-      bg: "var(--green-bg)",
-      color: "var(--green)",
-      border: "var(--green)",
-    },
-    yellow: {
-      bg: "var(--yellow-bg)",
-      color: "var(--yellow)",
-      border: "var(--yellow)",
-    },
-    red: { bg: "var(--red-bg)", color: "var(--red)", border: "var(--red)" },
-    gray: {
-      bg: "var(--gray-bg)",
-      color: "var(--gray)",
-      border: "var(--line-strong)",
-    },
-  }[level];
-
   return (
     <span
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 4,
-        padding: "2px 7px",
-        borderRadius: 3,
-        fontSize: 10.5,
-        fontWeight: 600,
-        background: colors.bg,
-        color: colors.color,
-        border: `1px solid ${colors.border}`,
-      }}
+      className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10.5px] font-semibold border ${DOC_BADGE_CLS[level]}`}
     >
       {level === "gray" ? "✗" : "✓"} {label}
     </span>
   );
 }
 
-function getComplianceLevel(trainings) {
-  if (!trainings) return "gray";
-  const now = new Date();
-  const soon = new Date();
-  soon.setDate(now.getDate() + 30);
-  const fields = [
-    "adnocInductionExpiry",
-    "h2sExpiry",
-    "medicalExpiry",
-    "seaSurvivalExpiry",
-  ];
-  const dates = fields.map((f) =>
-    trainings[f] ? new Date(trainings[f]) : null,
-  );
-  if (dates.some((d) => !d)) return "gray";
-  if (dates.some((d) => d < now)) return "red";
-  if (dates.some((d) => d < soon)) return "yellow";
-  return "green";
-}
-
 export default function SuggestDrawer() {
-  const { open, joId, slotIdx, slotId } = useDashboardStore((s) => s.ui.drawer);
+  const { open, joId, slotId } = useDashboardStore((s) => s.ui.drawer);
   const closeDrawer = useDashboardStore((s) => s.closeDrawer);
   const openAssignAudit = useDashboardStore((s) => s.openAssignAudit);
 
@@ -104,41 +61,49 @@ export default function SuggestDrawer() {
   return (
     <>
       <div
-        className={`drawer-overlay${open ? " show" : ""}`}
+        className={`fixed inset-0 bg-on-background/40 z-40 transition-opacity ${open ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"}`}
         onClick={closeDrawer}
       />
-      <div className={`drawer${open ? " show" : ""}`}>
+      <div
+        className={`fixed top-0 right-0 h-screen w-[380px] max-w-[92vw] bg-surface-container-lowest shadow-[0_4px_12px_rgba(15,23,42,0.08)] z-50 border-l border-outline-variant flex flex-col transition-transform duration-200 ${open ? "translate-x-0" : "translate-x-full"}`}
+      >
         {slot && (
           <>
-            <div className="drawer-head">
-              <h3>Suggested {slot.trade}s</h3>
-              <div className="sub">
+            <div className="px-[18px] py-4 border-b border-outline-variant">
+              <h3 className="text-body-lg font-semibold text-on-surface">
+                Suggested {slot.trade}s
+              </h3>
+              <div className="text-body-sm text-on-surface-variant mt-0.5">
                 {jo.jobOrderNumber} · {slot.trade} Slot {slot.slotNumber} · HSE
                 Passport & CICPA required
               </div>
             </div>
-            <div className="drawer-body">
+            <div className="px-[18px] py-3.5 overflow-y-auto flex-1">
               {candidates.length === 0 ? (
-                <div className="empty-state">
+                <div className="text-center text-outline text-body-sm py-8">
                   No available {slot.trade.toLowerCase()}s with both HSE
                   Passport and CICPA Pass on record.
                 </div>
               ) : (
                 candidates.map((c) => (
-                  <div className="cand-card" key={c._id}>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div className="cand-name">{c.name}</div>
-                      <div className="cand-meta mono">{c.employeeId}</div>
-                      <div
-                        className="cand-check"
-                        style={{ marginTop: 6, gap: 5 }}
-                      >
+                  <div
+                    className="border border-outline-variant rounded-lg p-3 mb-2.5 flex justify-between items-center gap-2.5"
+                    key={c._id}
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="font-semibold text-body-sm text-on-surface">
+                        {c.name}
+                      </div>
+                      <div className="font-mono-data text-[11px] text-on-surface-variant mt-0.5">
+                        {c.employeeId}
+                      </div>
+                      <div className="flex gap-1.5 mt-1.5">
                         <DocBadge label="HSE" doc={c.documents?.hsePassport} />
                         <DocBadge label="CICPA" doc={c.documents?.cicpaPass} />
                       </div>
                     </div>
                     <button
-                      className="btn btn-primary btn-sm"
+                      className="px-3 py-1.5 rounded text-label-sm bg-primary-container text-on-primary font-semibold hover:bg-primary shrink-0"
                       onClick={() => openAssignAudit(joId, slotId, c)}
                     >
                       Assign

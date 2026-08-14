@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { Search } from "lucide-react";
 import { useState } from "react";
 import { fetchAuditLogs } from "../api/services";
 import StatusBadge from "../components/StatusBadge";
@@ -11,6 +12,10 @@ const fmt = (d) =>
     hour: "2-digit",
     minute: "2-digit",
   });
+
+const th =
+  "text-left text-label-sm uppercase text-on-surface-variant bg-surface-container-low px-3.5 py-2.5 border-b border-outline-variant whitespace-nowrap";
+const td = "px-3.5 py-2.5 border-b border-outline-variant align-middle";
 
 export default function AuditLogPage() {
   const [search, setSearch] = useState("");
@@ -37,82 +42,81 @@ export default function AuditLogPage() {
 
   return (
     <div>
-      <div className="topbar">
+      <div className="flex items-start justify-between gap-5 flex-wrap mb-4">
         <div>
-          <h1>Audit Trail</h1>
-          <div className="sub">
+          <h1 className="text-headline-sm text-on-background">Audit Trail</h1>
+          <div className="text-body-sm text-on-surface-variant mt-1">
             Full history of every status change, assignment, and mobilisation
             event.
           </div>
         </div>
-        <input
-          className="ff"
-          type="text"
-          placeholder="Search name, site, reason…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          style={{ width: 260 }}
-        />
+        <div className="flex items-center gap-2 w-[280px] px-3 py-1.5 rounded border border-outline-variant bg-surface-container-low text-outline">
+          <Search size={15} className="shrink-0" />
+          <input
+            type="text"
+            placeholder="Search name, site, reason…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="bg-transparent outline-none text-body-sm text-on-surface w-full placeholder:text-outline"
+          />
+        </div>
       </div>
 
-      <div className="table-wrap">
+      <div className="bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden">
         {isLoading ? (
-          <div className="empty-state">Loading audit trail…</div>
+          <div className="text-center text-outline text-body-sm py-8">
+            Loading audit trail…
+          </div>
         ) : (
-          <table>
+          <table className="w-full border-collapse">
             <thead>
               <tr>
-                <th>Timestamp</th>
-                <th>Employee</th>
-                <th>Transition</th>
-                <th>Site</th>
-                <th>Reason</th>
-                <th>Authorized By</th>
-                <th>Updated By</th>
+                {[
+                  "Timestamp",
+                  "Employee",
+                  "Transition",
+                  "Site",
+                  "Reason",
+                  "Authorized By",
+                  "Updated By",
+                ].map((h) => (
+                  <th key={h} className={th}>
+                    {h}
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody>
               {filtered.map((l) => (
-                <tr key={l._id}>
-                  <td
-                    className="mono"
-                    style={{ fontSize: 11, whiteSpace: "nowrap" }}
-                  >
+                <tr key={l._id} className="hover:bg-surface-container-low">
+                  <td className={`${td} font-mono-data text-[11px] whitespace-nowrap`}>
                     {fmt(l.createdAt)}
                   </td>
-                  <td>
-                    <div className="emp-name">{l.employeeName}</div>
+                  <td className={td}>
+                    <div className="font-semibold text-on-surface text-body-sm">
+                      {l.employeeName}
+                    </div>
                   </td>
-                  <td>
-                    <div
-                      style={{ display: "flex", alignItems: "center", gap: 6 }}
-                    >
+                  <td className={td}>
+                    <div className="flex items-center gap-1.5">
                       <StatusBadge status={l.previousStatus} />
-                      <span style={{ color: "var(--text-3)", fontSize: 11 }}>
-                        →
-                      </span>
+                      <span className="text-outline text-[11px]">→</span>
                       <StatusBadge status={l.newStatus} />
                     </div>
                   </td>
-                  <td style={{ fontSize: 12 }}>
+                  <td className={`${td} text-body-sm`}>
                     {l.previousSite && l.previousSite !== l.newSite ? (
-                      <span style={{ color: "var(--text-2)" }}>
+                      <span className="text-on-surface-variant">
                         {l.previousSite} →{" "}
                       </span>
                     ) : null}
-                    <b>{l.newSite}</b>
+                    <b className="text-on-surface font-semibold">{l.newSite}</b>
                   </td>
-                  <td
-                    style={{
-                      fontSize: 12,
-                      maxWidth: 220,
-                      color: "var(--text-2)",
-                    }}
-                  >
+                  <td className={`${td} text-body-sm text-on-surface-variant max-w-[220px]`}>
                     {l.reasonForChange}
                   </td>
-                  <td style={{ fontSize: 12 }}>{l.authorizedBy}</td>
-                  <td style={{ fontSize: 12, color: "var(--text-3)" }}>
+                  <td className={`${td} text-body-sm`}>{l.authorizedBy}</td>
+                  <td className={`${td} text-body-sm text-outline`}>
                     {l.updatedByUserId?.name || "—"}
                   </td>
                 </tr>
@@ -121,7 +125,9 @@ export default function AuditLogPage() {
           </table>
         )}
         {!isLoading && filtered.length === 0 && (
-          <div className="empty-state">No audit records match the search.</div>
+          <div className="text-center text-outline text-body-sm py-8">
+            No audit records match the search.
+          </div>
         )}
       </div>
     </div>

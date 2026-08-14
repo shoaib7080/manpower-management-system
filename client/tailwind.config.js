@@ -1,16 +1,115 @@
 /** @type {import('tailwindcss').Config} */
+// Theme values below are copied directly from the Stitch export's own
+// generated tailwind.config (industrial_operations_framework design system),
+// reconciled against master_personnel_directory / job_order_fulfillment_dashboard
+// — the two screens whose configs agreed with each other. If a future Stitch
+// export's inline config disagrees with this file, treat this file as the
+// source of truth and reconcile the difference deliberately, rather than
+// overwriting it — see Design.md "Reconciling future Stitch exports".
 export default {
+  darkMode: "class",
   content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"],
   theme: {
     extend: {
       colors: {
-        slate: {
-          900: '#0f172a',
-          800: '#1e293b',
-          100: '#f1f5f9',
-        }
-      }
+        "on-secondary-fixed": "#351000",
+        "primary-fixed-dim": "#b2c5ff",
+        "on-primary-fixed-variant": "#0040a2",
+        background: "#f8f9ff",
+        "on-tertiary-fixed": "#131b2e",
+        outline: "#737685",
+        "on-primary-container": "#c4d2ff",
+        "surface-container-lowest": "#ffffff",
+        "outline-variant": "#c3c6d6",
+        "secondary-fixed-dim": "#ffb693",
+        "surface-dim": "#cbdbf5",
+        "surface-container-low": "#eff4ff",
+        "tertiary-container": "#535a70",
+        "on-tertiary-container": "#cbd2ec",
+        "on-background": "#0b1c30",
+        "error-container": "#ffdad6",
+        "on-secondary": "#ffffff",
+        "secondary-fixed": "#ffdbcc",
+        "inverse-primary": "#b2c5ff",
+        "on-error-container": "#93000a",
+        error: "#ba1a1a",
+        "on-error": "#ffffff",
+        surface: "#f8f9ff",
+        "surface-bright": "#f8f9ff",
+        "surface-container": "#e5eeff",
+        "surface-tint": "#0c56d0",
+        "primary-container": "#0052cc",
+        primary: "#003d9b",
+        "on-surface-variant": "#434654",
+        "on-tertiary-fixed-variant": "#3f465c",
+        "on-primary-fixed": "#001848",
+        "on-primary": "#ffffff",
+        "inverse-on-surface": "#eaf1ff",
+        "secondary-container": "#fe6b00",
+        "primary-fixed": "#dae2ff",
+        "surface-container-high": "#dce9ff",
+        "on-secondary-fixed-variant": "#7a3000",
+        tertiary: "#3b4358",
+        "on-tertiary": "#ffffff",
+        "on-surface": "#0b1c30",
+        "tertiary-fixed": "#dae2fd",
+        "tertiary-fixed-dim": "#bec6e0",
+        "on-secondary-container": "#572000",
+        secondary: "#a04100",
+        "surface-container-highest": "#d3e4fe",
+        "inverse-surface": "#213145",
+        "surface-variant": "#d3e4fe",
+      },
+      // NOTE: this "full" key overrides Tailwind's built-in `rounded-full`
+      // (normally 9999px) down to 12px, matching Stitch's own scale. For an
+      // actual circle (avatars, dots), use `rounded-[9999px]` explicitly —
+      // don't reach for `rounded-full` expecting a perfect circle.
+      borderRadius: {
+        DEFAULT: "0.125rem",
+        lg: "0.25rem",
+        xl: "0.5rem",
+        full: "0.75rem",
+      },
+      spacing: {
+        gutter: "16px",
+        "stack-lg": "16px",
+        "density-compact": "4px 8px",
+        "stack-sm": "4px",
+        "stack-md": "8px",
+        "container-max": "1440px",
+        "density-comfortable": "12px 16px",
+        "edge-margin": "24px",
+      },
+      fontFamily: {
+        sans: ["Inter", "sans-serif"],
+        "label-md": ["Inter"],
+        "label-sm": ["Inter"],
+        "headline-md": ["Inter"],
+        "headline-lg": ["Inter"],
+        "headline-sm": ["Inter"],
+        "body-lg": ["Inter"],
+        "mono-data": ["JetBrains Mono", "monospace"],
+        "body-sm": ["Inter"],
+        "body-md": ["Inter"],
+      },
+      fontSize: {
+        "label-md": ["12px", { lineHeight: "16px", fontWeight: "600" }],
+        "label-sm": ["11px", { lineHeight: "14px", fontWeight: "500" }],
+        "headline-md": [
+          "24px",
+          { lineHeight: "32px", letterSpacing: "-0.01em", fontWeight: "600" },
+        ],
+        "headline-lg": [
+          "30px",
+          { lineHeight: "38px", letterSpacing: "-0.02em", fontWeight: "600" },
+        ],
+        "headline-sm": ["18px", { lineHeight: "26px", fontWeight: "600" }],
+        "body-lg": ["16px", { lineHeight: "24px", fontWeight: "400" }],
+        "mono-data": ["12px", { lineHeight: "16px", fontWeight: "400" }],
+        "body-sm": ["13px", { lineHeight: "18px", fontWeight: "400" }],
+        "body-md": ["14px", { lineHeight: "20px", fontWeight: "400" }],
+      },
     },
   },
   plugins: [],
-}
+};

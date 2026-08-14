@@ -5,52 +5,20 @@ import {
   getSpecializations,
   updateEmployee as updateEmployeeApi,
 } from "../../api/services";
-import ComplianceDot from "../ComplianceDot";
 import {
-  EMP_STATUSES,
-  getLevel,
-  isMobReady,
-  toDateInput,
-} from "./employeeUtils";
+  Field,
+  ModalBody,
+  ModalHead,
+  Overlay,
+  btnGhost,
+  btnPrimary,
+  inputCls,
+} from "../ui/Modal";
+import { EMP_STATUSES, TRADES, isMobReady, toDateInput } from "./employeeUtils";
 
-const fieldStyle = {
-  display: "flex",
-  flexDirection: "column",
-  gap: 4,
-  marginBottom: 12,
-};
-const labelStyle = { fontSize: 11, color: "var(--text-2)", fontWeight: 600 };
-const inputStyle = {
-  padding: "6px 8px",
-  borderRadius: 4,
-  border: "1px solid var(--line)",
-  fontSize: 13,
-  background: "var(--paper)",
-  color: "var(--ink)",
-};
-const sectionStyle = {
-  fontSize: 11,
-  fontWeight: 700,
-  color: "var(--text-3)",
-  letterSpacing: ".05em",
-  margin: "16px 0 8px",
-  textTransform: "uppercase",
-};
-
-function DocCell({ doc }) {
-  const has = !!(doc?.number || doc?.expiry);
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-      <span
-        className="mono"
-        style={{ fontSize: 10.5, color: has ? "var(--ink)" : "var(--text-3)" }}
-      >
-        {doc?.number || "—"}
-      </span>
-      <ComplianceDot level={!has ? "gray" : getLevel(doc?.expiry)} />
-    </div>
-  );
-}
+const sectionCls =
+  "text-label-sm font-bold uppercase tracking-wide text-outline mt-4 mb-2 first:mt-0";
+const gridCls = "grid grid-cols-2 gap-2.5";
 
 export default function EmployeeDetailModal({ emp, onClose }) {
   const qc = useQueryClient();
@@ -120,84 +88,55 @@ export default function EmployeeDetailModal({ emp, onClose }) {
   });
 
   return (
-    <div
-      className="overlay show"
-      onClick={(e) => e.target === e.currentTarget && onClose()}
-    >
-      <div
-        className="modal"
-        style={{
-          maxWidth: 520,
-          maxHeight: "85vh",
-          overflowY: "auto",
-          scrollbarWidth: "none",
-        }}
-      >
+    <Overlay onBackdropClick={onClose}>
+      <div className="bg-surface-container-lowest rounded-xl overflow-hidden shadow-[0_4px_12px_rgba(15,23,42,0.08)] w-[520px] max-w-full max-h-[85vh] overflow-y-auto">
         {!isMobReady(emp) && (
-          <div
-            style={{
-              padding: "8px 12px",
-              fontSize: 12,
-              background: "var(--red-bg)",
-              color: "var(--red)",
-              margin: "8px 12px",
-              borderRadius: 4,
-            }}
-          >
+          <div className="text-body-sm bg-error-container/40 text-on-error-container m-3 p-2.5 rounded">
             Not assignable — missing valid HSE Passport or CICPA Pass. Update
             the document fields below and save.
           </div>
         )}
-        <div className="modal-head">
-          <h3>Edit — {emp.name}</h3>
-          <button className="modal-close" onClick={onClose}>
-            ×
-          </button>
-        </div>
-        <div className="modal-body">
+        <ModalHead title={`Edit — ${emp.name}`} onClose={onClose} />
+        <ModalBody>
           {error && (
-            <div
-              style={{ color: "var(--red)", fontSize: 12, marginBottom: 10 }}
-            >
-              {error}
-            </div>
+            <div className="text-error text-body-sm mb-2.5">{error}</div>
           )}
 
-          <div style={sectionStyle}>Identity</div>
-          <div
-            style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}
-          >
-            <div style={fieldStyle}>
-              <label style={labelStyle}>Employee ID (read-only)</label>
+          <div className={sectionCls}>Identity</div>
+          <div className={gridCls}>
+            <Field label="Employee ID (read-only)">
               <input
-                style={{ ...inputStyle, opacity: 0.5 }}
+                className={`${inputCls} opacity-50`}
                 value={emp.employeeId}
                 disabled
               />
-            </div>
-            <div style={fieldStyle}>
-              <label style={labelStyle}>Full Name *</label>
+            </Field>
+            <Field label="Full Name" required>
               <input
-                style={inputStyle}
+                className={inputCls}
                 value={form.name}
                 onChange={(e) => set("name", e.target.value)}
               />
-            </div>
-            <div style={fieldStyle}>
-              <label style={labelStyle}>Trade *</label>
-              <input
-                style={inputStyle}
+            </Field>
+            <Field label="Trade" required>
+              <select
+                className={inputCls}
                 value={form.trade}
                 onChange={(e) => {
                   set("trade", e.target.value);
                   set("specialization", "");
                 }}
-              />
-            </div>
-            <div style={fieldStyle}>
-              <label style={labelStyle}>Specialization</label>
+              >
+                {TRADES.map((t) => (
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Specialization">
               <select
-                style={inputStyle}
+                className={inputCls}
                 value={form.specialization}
                 onChange={(e) => set("specialization", e.target.value)}
               >
@@ -208,11 +147,10 @@ export default function EmployeeDetailModal({ emp, onClose }) {
                   </option>
                 ))}
               </select>
-            </div>
-            <div style={fieldStyle}>
-              <label style={labelStyle}>Status</label>
+            </Field>
+            <Field label="Status">
               <select
-                style={inputStyle}
+                className={inputCls}
                 value={form.status}
                 onChange={(e) => set("status", e.target.value)}
               >
@@ -220,120 +158,107 @@ export default function EmployeeDetailModal({ emp, onClose }) {
                   <option key={s}>{s}</option>
                 ))}
               </select>
-            </div>
-            <div style={fieldStyle}>
-              <label style={labelStyle}>Date of Birth</label>
+            </Field>
+            <Field label="Date of Birth">
               <input
                 type="date"
-                style={inputStyle}
+                className={inputCls}
                 value={form.dob}
                 onChange={(e) => set("dob", e.target.value)}
               />
-            </div>
-            <div style={fieldStyle}>
-              <label style={labelStyle}>Emirates ID</label>
+            </Field>
+            <Field label="Emirates ID">
               <input
-                style={inputStyle}
+                className={inputCls}
                 value={form.emiratesId}
                 onChange={(e) => set("emiratesId", e.target.value)}
               />
-            </div>
-            <div style={fieldStyle}>
-              <label style={labelStyle}>Passport Number</label>
+            </Field>
+            <Field label="Passport Number">
               <input
-                style={inputStyle}
+                className={inputCls}
                 value={form.passportNumber}
                 onChange={(e) => set("passportNumber", e.target.value)}
               />
-            </div>
+            </Field>
           </div>
 
-          <div style={sectionStyle}>Documents</div>
-          <div
-            style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}
-          >
-            <div style={fieldStyle}>
-              <label style={labelStyle}>HSE Passport No.</label>
+          <div className={sectionCls}>Documents</div>
+          <div className={gridCls}>
+            <Field label="HSE Passport No.">
               <input
-                style={inputStyle}
+                className={inputCls}
                 value={form.documents.hsePassport.number}
                 onChange={(e) =>
                   set("documents.hsePassport.number", e.target.value)
                 }
               />
-            </div>
-            <div style={fieldStyle}>
-              <label style={labelStyle}>HSE Passport Expiry</label>
+            </Field>
+            <Field label="HSE Passport Expiry">
               <input
                 type="date"
-                style={inputStyle}
+                className={inputCls}
                 value={form.documents.hsePassport.expiry}
                 onChange={(e) =>
                   set("documents.hsePassport.expiry", e.target.value)
                 }
               />
-            </div>
-            <div style={fieldStyle}>
-              <label style={labelStyle}>CICPA No.</label>
+            </Field>
+            <Field label="CICPA No.">
               <input
-                style={inputStyle}
+                className={inputCls}
                 value={form.documents.cicpaPass.number}
                 onChange={(e) =>
                   set("documents.cicpaPass.number", e.target.value)
                 }
               />
-            </div>
-            <div style={fieldStyle}>
-              <label style={labelStyle}>CICPA Expiry</label>
+            </Field>
+            <Field label="CICPA Expiry">
               <input
                 type="date"
-                style={inputStyle}
+                className={inputCls}
                 value={form.documents.cicpaPass.expiry}
                 onChange={(e) =>
                   set("documents.cicpaPass.expiry", e.target.value)
                 }
               />
-            </div>
+            </Field>
           </div>
 
-          <div style={sectionStyle}>Trainings</div>
-          <div
-            style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}
-          >
+          <div className={sectionCls}>Trainings</div>
+          <div className={gridCls}>
             {[
               ["ADNOC Induction Expiry", "trainings.adnocInductionExpiry"],
               ["H2S Expiry", "trainings.h2sExpiry"],
               ["Medical Expiry", "trainings.medicalExpiry"],
               ["Sea Survival Expiry", "trainings.seaSurvivalExpiry"],
             ].map(([label, path]) => (
-              <div key={path} style={fieldStyle}>
-                <label style={labelStyle}>{label}</label>
+              <Field label={label} key={path}>
                 <input
                   type="date"
-                  style={inputStyle}
+                  className={inputCls}
                   value={path.split(".").reduce((o, k) => o?.[k], form) || ""}
                   onChange={(e) => set(path, e.target.value)}
                 />
-              </div>
+              </Field>
             ))}
           </div>
-        </div>
+        </ModalBody>
 
-        <div className="modal-foot" style={{ justifyContent: "space-between" }}>
+        <div className="px-[18px] py-3 border-t border-outline-variant flex justify-between items-center bg-surface-container-low">
           {confirmDelete ? (
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <span style={{ fontSize: 12, color: "var(--red)" }}>
+            <div className="flex items-center gap-2">
+              <span className="text-body-sm text-error">
                 Permanently delete?
               </span>
               <button
-                className="btn btn-ghost"
+                className={btnGhost}
                 onClick={() => setConfirmDelete(false)}
               >
                 No
               </button>
               <button
-                className="btn"
-                style={{ background: "var(--red)", color: "#fff" }}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded text-label-md bg-error text-white hover:bg-error/90 disabled:opacity-50"
                 disabled={deleteMutation.isPending}
                 onClick={() => deleteMutation.mutate()}
               >
@@ -342,19 +267,18 @@ export default function EmployeeDetailModal({ emp, onClose }) {
             </div>
           ) : (
             <button
-              className="btn btn-ghost"
-              style={{ color: "var(--red)" }}
+              className={`${btnGhost} text-error hover:text-error`}
               onClick={() => setConfirmDelete(true)}
             >
               Delete Employee
             </button>
           )}
-          <div style={{ display: "flex", gap: 8 }}>
-            <button className="btn btn-ghost" onClick={onClose}>
+          <div className="flex gap-2">
+            <button className={btnGhost} onClick={onClose}>
               Cancel
             </button>
             <button
-              className="btn btn-primary"
+              className={btnPrimary}
               disabled={updateMutation.isPending}
               onClick={() => {
                 setError("");
@@ -366,6 +290,6 @@ export default function EmployeeDetailModal({ emp, onClose }) {
           </div>
         </div>
       </div>
-    </div>
+    </Overlay>
   );
 }

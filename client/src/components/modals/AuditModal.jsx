@@ -1,6 +1,17 @@
 import { useEffect, useState } from 'react';
 import useDashboardStore from '../../store/useDashboardStore';
 import StatusBadge from '../StatusBadge';
+import {
+  Field,
+  ModalBody,
+  ModalFoot,
+  ModalHead,
+  ModalShell,
+  Overlay,
+  btnGhost,
+  btnPrimary,
+  inputCls,
+} from '../ui/Modal';
 
 const AUTH_OPTIONS = [
   'Ali Hassan — Site Engineer',
@@ -29,39 +40,40 @@ export default function AuditModal({ onConfirm }) {
   };
 
   return (
-    <div className="overlay show" onClick={(e) => e.target === e.currentTarget && closeAuditModal()}>
-      <div className="modal">
-        <div className="modal-head">
-          <h3>Confirm Status Change</h3>
-          <button className="modal-close" onClick={closeAuditModal}>×</button>
-        </div>
-        <div className="modal-body">
-          <div className="worker-line">
-            Worker: <b>{pending.workerName}</b> · <span className="mono">{pending.workerTrade}</span>
+    <Overlay onBackdropClick={closeAuditModal}>
+      <ModalShell>
+        <ModalHead title="Confirm Status Change" onClose={closeAuditModal} />
+        <ModalBody>
+          <div className="text-body-sm text-on-surface-variant mb-3">
+            Worker: <b className="text-on-surface font-semibold">{pending.workerName}</b>{" "}
+            · <span className="font-mono-data">{pending.workerTrade}</span>
           </div>
-          <div className="transition-box">
+          <div className="flex items-center justify-center gap-2.5 bg-surface-container-low border border-outline-variant rounded px-3 py-2.5 mb-3.5">
             <StatusBadge status={pending.from} />
-            <span className="arrow">→</span>
+            <span className="text-outline text-label-md">→</span>
             <StatusBadge status={pending.to} />
           </div>
-          <div className="field">
-            <label>Reason for Change <span className="req">*</span></label>
-            <textarea rows={3} value={reason} onChange={(e) => setReason(e.target.value)}
-              placeholder="e.g. Client confirmed headcount, mobilizing per site schedule…" />
-          </div>
-          <div className="field" style={{ marginBottom: 0 }}>
-            <label>Authorized By <span className="req">*</span></label>
-            <select value={authBy} onChange={(e) => setAuthBy(e.target.value)}>
+          <Field label="Reason for Change" required>
+            <textarea
+              rows={3}
+              className={inputCls}
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder="e.g. Client confirmed headcount, mobilizing per site schedule…"
+            />
+          </Field>
+          <Field label="Authorized By" required>
+            <select className={inputCls} value={authBy} onChange={(e) => setAuthBy(e.target.value)}>
               <option value="">Select engineer / manager…</option>
               {AUTH_OPTIONS.map((o) => <option key={o}>{o}</option>)}
             </select>
-          </div>
-        </div>
-        <div className="modal-foot">
-          <button className="btn btn-ghost" onClick={closeAuditModal}>Cancel</button>
-          <button className="btn btn-primary" disabled={!canSave} onClick={handleSave}>Save Change</button>
-        </div>
-      </div>
-    </div>
+          </Field>
+        </ModalBody>
+        <ModalFoot>
+          <button className={btnGhost} onClick={closeAuditModal}>Cancel</button>
+          <button className={btnPrimary} disabled={!canSave} onClick={handleSave}>Save Change</button>
+        </ModalFoot>
+      </ModalShell>
+    </Overlay>
   );
 }

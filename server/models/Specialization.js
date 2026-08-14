@@ -17,7 +17,7 @@ const specializationSchema = new mongoose.Schema(
 
 specializationSchema.index({ nameLower: 1 }, { unique: true });
 
-specializationSchema.pre("save", async function () {
+specializationSchema.pre("save", async function (next) {
   this.nameLower = this.name.toLowerCase();
   next();
 });
