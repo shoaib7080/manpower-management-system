@@ -44,12 +44,12 @@ export function getLevel(date) {
 }
 
 export function hasDoc(doc) {
-  return !!(
-    doc?.number?.trim() ||
-    (doc?.expiry && new Date(doc.expiry) >= new Date())
-  );
+  return Boolean(doc?.available);
 }
 
 export function isMobReady(emp) {
-  return hasDoc(emp.documents?.hsePassport) && hasDoc(emp.documents?.cicpaPass);
+  return Boolean(
+    emp?.documents?.hsePassport?.available &&
+      emp?.documents?.cicpaPass?.available,
+  );
 }

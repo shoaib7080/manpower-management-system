@@ -1,6 +1,8 @@
 import {
+  Briefcase,
   ClipboardList,
   History,
+  LayoutDashboard,
   LogOut,
   ShieldCheck,
   Tags,
@@ -17,6 +19,7 @@ const LEGEND = [
 ];
 
 const NAV = [
+  { to: "/", label: "Dashboard", Icon: LayoutDashboard, end: true },
   { to: "/directory", label: "Personnel Directory", Icon: Users },
   { to: "/job-orders", label: "Job Orders", Icon: ClipboardList },
   { to: "/audit-log", label: "Audit Trail", Icon: History },
@@ -24,6 +27,7 @@ const NAV = [
 
 const ADMIN_NAV = [
   { to: "/users", label: "User Management", Icon: ShieldCheck },
+  { to: "/trades", label: "Trades", Icon: Briefcase },
   { to: "/specializations", label: "Specializations", Icon: Tags },
 ];
 

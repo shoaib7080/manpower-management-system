@@ -1,6 +1,6 @@
 import { Briefcase, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
-import { TRADES } from "../manpower/employeeUtils";
+import useTrades from "../../hooks/useTrades";
 import {
   Field,
   ModalBody,
@@ -25,6 +25,7 @@ export default function CreateJobOrderModal({
   onSubmit,
   isPending,
 }) {
+  const { trades = [] } = useTrades();
   const [jobOrderNumber, setJobOrderNumber] = useState("");
   const [siteName, setSiteName] = useState("");
   const [clientCategory, setClientCategory] = useState("ADNOC Offshore");
@@ -183,7 +184,7 @@ export default function CreateJobOrderModal({
                     }
                     className={`flex-1 ${inputCls}`}
                   >
-                    {TRADES.map((t) => (
+                    {trades.map((t) => (
                       <option key={t} value={t}>
                         {t}
                       </option>

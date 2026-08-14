@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { X } from "lucide-react";
 import { useState } from "react";
 import { createJobOrder, fetchJobOrders } from "../api/services";
 import CreateJobOrderModal from "../components/jobOrders/CreateJobOrdersModal";
@@ -10,8 +11,6 @@ const btnBase =
   "inline-flex items-center gap-1.5 px-3.5 py-2 rounded text-label-md whitespace-nowrap";
 const btnOutline = `${btnBase} border border-outline-variant bg-surface-container-lowest text-on-surface hover:bg-surface-container-low`;
 const btnPrimary = `${btnBase} bg-primary-container text-on-primary font-semibold hover:bg-primary`;
-const iconBtn =
-  "px-2.5 py-1.5 rounded border border-outline-variant bg-surface-container-lowest text-label-sm text-on-surface-variant hover:bg-surface-container-low";
 
 // Job-order health isn't a stored field — derived from fulfillment so the
 // badge means something real rather than an invented status. Kept to three
@@ -19,28 +18,32 @@ const iconBtn =
 // threshold based on dates we'd otherwise have to guess at).
 function healthBadge(filled, total, mobilized) {
   if (total > 0 && filled === total)
-    return ["FULFILLED", "bg-green-50 text-green-700 border-green-200"];
+    return ["ON TRACK", "bg-green-100 text-green-800"];
   if (mobilized > 0)
-    return [
-      "MOBILIZING",
-      "bg-[#eff4ff] text-primary-container border-primary-container/20",
-    ];
+    return ["MOBILIZING", "bg-primary-fixed text-on-primary-fixed"];
   if (filled === 0)
-    return ["PLANNING", "bg-surface-container-low text-on-surface-variant border-outline-variant"];
-  return ["IN PROGRESS", "bg-amber-50 text-amber-700 border-amber-200"];
+    return ["PLANNING", "bg-surface-container-high text-on-surface"];
+  return ["IN PROGRESS", "bg-orange-100 text-orange-800"];
 }
+
+const fmt = (d) =>
+  d
+    ? new Date(d).toLocaleDateString("en-GB", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      })
+    : "—";
 
 export default function JobOrdersPage() {
   const qc = useQueryClient();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  const [selectedJoId, setSelectedJoId] = useState(null);
 
   const { data: jobOrders = [], isLoading } = useQuery({
     queryKey: ["jobOrders"],
-    queryFn: async () => {
-      const res = await fetchJobOrders();
-      return res.data;
-    },
+    queryFn: async () => (await fetchJobOrders()).data,
   });
 
   const createMutation = useMutation({
@@ -51,15 +54,18 @@ export default function JobOrdersPage() {
     },
   });
 
+  const selectedJo = jobOrders.find((j) => j._id === selectedJoId) || null;
+
   return (
     <div>
       <div className="flex items-start justify-between gap-5 flex-wrap mb-1">
         <div>
           <h1 className="text-headline-sm text-on-background">
-            Job Order &amp; Site Fulfillment
+            Active Job Orders
           </h1>
           <div className="text-body-sm text-on-surface-variant mt-1">
-            Expand any job order to manage trade slots and mobilise personnel.
+            Manage manpower fulfillment across active offshore and onshore
+            sites.
           </div>
         </div>
         <div className="flex gap-2 shrink-0">
@@ -81,11 +87,20 @@ export default function JobOrdersPage() {
           No job orders found. Create one to get started.
         </div>
       ) : (
-        <div className="flex flex-col gap-3 mt-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 mt-5">
           {jobOrders.map((jo) => (
-            <JobOrderCard key={jo._id} jo={jo} />
+            <JobOrderCard
+              key={jo._id}
+              jo={jo}
+              selected={jo._id === selectedJoId}
+              onOpen={() => setSelectedJoId(jo._id)}
+            />
           ))}
         </div>
+      )}
+
+      {selectedJo && (
+        <JobOrderDrawer jo={selectedJo} onClose={() => setSelectedJoId(null)} />
       )}
 
       <CreateJobOrderModal
@@ -101,14 +116,74 @@ export default function JobOrdersPage() {
   );
 }
 
-function JobOrderCard({ jo }) {
-  const [expanded, setExpanded] = useState(false);
-
+function JobOrderCard({ jo, selected, onOpen }) {
   const total = jo.slots.length;
   const filled = jo.slots.filter((s) => s.status !== "UNASSIGNED").length;
   const mobilized = jo.slots.filter((s) => s.status === "MOBILIZED").length;
   const pct = total > 0 ? Math.round((filled / total) * 100) : 0;
   const [healthLabel, healthCls] = healthBadge(filled, total, mobilized);
+  const shortfall = total - filled;
+
+  return (
+    <div
+      onClick={onOpen}
+      className={`bg-surface-container-lowest border rounded-lg p-4 cursor-pointer hover:bg-surface-container-low transition-colors ${
+        selected ? "border-primary-container" : "border-outline-variant"
+      }`}
+    >
+      <div className="flex justify-between items-start mb-3 gap-2">
+        <div className="min-w-0">
+          <span className="text-label-sm uppercase tracking-wider text-on-surface-variant">
+            {jo.clientCategory}
+          </span>
+          <h4 className="text-headline-sm text-on-surface mt-1 truncate">
+            {jo.siteName}
+          </h4>
+        </div>
+        <span
+          className={`inline-flex items-center px-2 py-1 rounded-full text-[10px] font-bold shrink-0 ${healthCls}`}
+        >
+          {healthLabel}
+        </span>
+      </div>
+
+      <div className="flex items-center gap-2 text-on-surface-variant mb-4 text-label-sm">
+        <span className="font-mono-data">
+          {fmt(jo.startDate)} – {fmt(jo.targetDemobDate)}
+        </span>
+      </div>
+
+      <div className="space-y-2">
+        <div className="flex justify-between text-label-md">
+          <span className="text-on-surface">Fulfillment</span>
+          <span
+            className={
+              shortfall === 0
+                ? "text-on-surface-variant"
+                : "text-primary-container"
+            }
+          >
+            {filled} / {total}
+          </span>
+        </div>
+        <div className="w-full bg-surface-container-high rounded-full h-1.5">
+          <div
+            className={`h-1.5 rounded-full ${pct === 100 ? "bg-green-600" : "bg-primary-container"}`}
+            style={{ width: `${pct}%` }}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function JobOrderDrawer({ jo, onClose }) {
+  const [activeSlot, setActiveSlot] = useState(null); // { slot, slotIdx } for a filled-slot popover
+  const openDrawer = useDashboardStore((s) => s.openDrawer);
+
+  const total = jo.slots.length;
+  const filled = jo.slots.filter((s) => s.status !== "UNASSIGNED").length;
+  const shortfall = total - filled;
 
   const byTrade = jo.slots.reduce((acc, slot, idx) => {
     if (!acc[slot.trade]) acc[slot.trade] = [];
@@ -116,193 +191,267 @@ function JobOrderCard({ jo }) {
     return acc;
   }, {});
 
-  return (
-    <div className="bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden">
-      <div className="p-4">
-        <div className="flex justify-between items-start gap-4 flex-wrap">
-          <div className="flex-1 min-w-0">
-            <div className="font-mono-data text-label-sm text-on-surface-variant">
-              {jo.jobOrderNumber}
-            </div>
-            <h4 className="text-headline-sm text-on-surface mt-0.5">
-              {jo.siteName}
-            </h4>
-            <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-              <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-primary-container/10 text-primary-container">
-                {jo.clientCategory}
-              </span>
-              <span className="text-label-sm text-on-surface-variant">
-                Eng: {jo.projectEngineer}
-              </span>
-            </div>
-          </div>
-
-          <div className="flex flex-col items-end gap-2 shrink-0">
-            <div className="flex items-center gap-2">
-              <span
-                className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold border ${healthCls}`}
-              >
-                {healthLabel}
-              </span>
-              <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-surface-container-low text-on-surface-variant border border-outline-variant">
-                {total - filled} Open
-              </span>
-            </div>
-            <button
-              className="inline-flex items-center gap-1.5 border border-outline-variant bg-surface-container-lowest rounded px-2.5 py-1.5 text-label-sm text-on-surface-variant hover:bg-surface-container-low"
-              onClick={() => setExpanded((v) => !v)}
-            >
-              {expanded ? "Hide Slots" : "Manage Slots"}
-              <span className="text-[9px]">{expanded ? "▲" : "▼"}</span>
-            </button>
-          </div>
-        </div>
-
-        <div className="flex gap-5 mt-2.5 text-label-sm text-on-surface-variant flex-wrap">
-          <div>
-            Mob: <b className="text-on-surface font-semibold">{jo.startDate ? fmt(jo.startDate) : "—"}</b>
-          </div>
-          <div>
-            Demob: <b className="text-on-surface font-semibold">{jo.targetDemobDate ? fmt(jo.targetDemobDate) : "—"}</b>
-          </div>
-        </div>
-
-        <div className="mt-3 space-y-2">
-          <div className="flex justify-between font-label-md text-label-md">
-            <span className="text-on-surface">Team Fulfillment</span>
-            <span className="text-primary-container">
-              {filled} / {total} filled ({pct}%)
-            </span>
-          </div>
-          <div className="w-full bg-surface-container-high rounded-full h-2">
-            <div
-              className="bg-primary-container h-2 rounded-full"
-              style={{ width: `${pct}%` }}
-            />
-          </div>
-        </div>
-      </div>
-
-      {expanded && (
-        <div className="border-t border-outline-variant">
-          {Object.entries(byTrade).map(([trade, slots]) => (
-            <TradeGroup key={trade} trade={trade} slots={slots} joId={jo._id} />
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function TradeGroup({ trade, slots, joId }) {
-  const filled = slots.filter((s) => s.status !== "UNASSIGNED").length;
-
-  return (
-    <div className="border-b border-outline-variant last:border-b-0">
-      <div className="flex items-center justify-between px-4 py-2 bg-surface-container-low">
-        <span className="text-label-sm uppercase text-on-surface-variant">
-          {trade}
-        </span>
-        <span className="text-label-sm text-outline">
-          {filled} / {slots.length} filled
-        </span>
-      </div>
-
-      <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-2 p-3">
-        {slots.map((slot) => (
-          <Slot key={slot._id} joId={joId} slot={slot} slotIdx={slot._idx} />
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function Slot({ joId, slot, slotIdx }) {
-  const openDrawer = useDashboardStore((s) => s.openDrawer);
-  const requestAdvance = useDashboardStore((s) => s.requestAdvance);
-  const requestSwap = useDashboardStore((s) => s.requestSwap);
-
-  const emp = slot.assignedEmployee;
-  const isUnassigned = slot.status === "UNASSIGNED";
-  const locked = slot.status === "BOOKED" || slot.status === "MOBILIZED";
-  const stageIdx = STAGES.indexOf(slot.status);
-
-  if (isUnassigned) {
-    return (
-      <div className="border border-dashed border-outline-variant rounded-lg p-2.5 bg-surface-container-low flex flex-col gap-2">
-        <div className="flex justify-between items-start gap-2">
-          <div>
-            <div className="text-label-sm uppercase text-on-surface-variant">
-              Slot {slot.slotNumber}
-            </div>
-            <div className="text-body-sm text-outline mt-0.5">Unassigned</div>
-          </div>
-          <StatusBadge status="AVAILABLE" />
-        </div>
-        <button
-          className="w-full py-2 rounded border border-dashed border-outline-variant text-primary-container font-semibold text-label-sm hover:bg-primary-container/10 hover:border-primary-container"
-          onClick={() => openDrawer(joId, slotIdx, slot._id)}
-        >
-          ⚡ Auto-Suggest
-        </button>
-      </div>
+  // Real-data timeline: only the two dates the app actually tracks
+  // (startDate / targetDemobDate). Not fabricating "Medicals"/"Visas"
+  // checkpoints the way the design reference shows — those aren't fields
+  // this app tracks anywhere, and inventing them would put dates in front
+  // of a coordinator with nothing real behind them.
+  const start = jo.startDate ? new Date(jo.startDate) : null;
+  const end = jo.targetDemobDate ? new Date(jo.targetDemobDate) : null;
+  const now = new Date();
+  let todayPct = 0;
+  if (start && end && end > start) {
+    todayPct = Math.min(
+      100,
+      Math.max(0, ((now - start) / (end - start)) * 100),
     );
   }
 
   return (
-    <div
-      className={`border rounded-lg p-2.5 bg-surface-container-lowest flex flex-col gap-2 ${locked ? "border-on-surface-variant" : "border-outline-variant"}`}
-    >
-      <div className="flex justify-between items-start gap-2">
-        <div>
-          <div className="text-label-sm uppercase text-on-surface-variant">
-            Slot {slot.slotNumber}
+    <>
+      <div
+        className="fixed inset-0 bg-on-background/30 z-40"
+        onClick={onClose}
+      />
+      <div className="fixed inset-y-0 right-0 w-full max-w-xl bg-surface-container-lowest border-l border-outline-variant shadow-[-4px_0_24px_rgba(15,23,42,0.08)] flex flex-col z-50">
+        <div className="px-6 py-4 border-b border-outline-variant flex justify-between items-center sticky top-0 bg-surface-container-lowest z-10">
+          <div>
+            <h3 className="text-headline-sm text-on-surface">{jo.siteName}</h3>
+            <span className="font-mono-data text-[11px] text-on-surface-variant">
+              {jo.jobOrderNumber} · {jo.clientCategory}
+            </span>
           </div>
-          <div className="font-semibold text-body-sm text-on-surface mt-0.5">
-            {emp?.name || "—"}
-          </div>
-          {emp?.employeeId && (
-            <div className="font-mono-data text-[10.5px] text-outline mt-0.5">
-              {emp.employeeId}
-            </div>
-          )}
+          <button
+            onClick={onClose}
+            className="p-2 hover:bg-surface-container-low rounded-full text-on-surface-variant"
+          >
+            <X size={18} />
+          </button>
         </div>
+
+        <div className="flex-1 overflow-y-auto p-6 space-y-8 relative">
+          <div className="grid grid-cols-3 gap-4">
+            <div className="border border-outline-variant rounded p-3 bg-surface-container-low">
+              <span className="text-label-sm text-on-surface-variant block mb-1">
+                TOTAL REQ.
+              </span>
+              <span className="text-headline-md font-mono-data text-on-surface block">
+                {total}
+              </span>
+            </div>
+            <div className="border border-outline-variant rounded p-3 bg-surface-container-low">
+              <span className="text-label-sm text-on-surface-variant block mb-1">
+                FULFILLED
+              </span>
+              <span className="text-headline-md font-mono-data text-primary-container block">
+                {filled}
+              </span>
+            </div>
+            <div className="border border-outline-variant rounded p-3 bg-surface-container-low">
+              <span className="text-label-sm text-on-surface-variant block mb-1">
+                SHORTFALL
+              </span>
+              <span
+                className={`text-headline-md font-mono-data block ${shortfall > 0 ? "text-orange-600" : "text-on-surface-variant"}`}
+              >
+                {shortfall}
+              </span>
+            </div>
+          </div>
+
+          <div>
+            <h4 className="text-label-md text-on-surface mb-3 uppercase tracking-wider">
+              Mobilization Timeline
+            </h4>
+            <div className="relative pt-6 pb-2">
+              <div className="absolute h-1 bg-surface-container-high w-full top-8 rounded" />
+              <div
+                className="absolute h-1 bg-primary-container top-8 rounded-l"
+                style={{ width: `${todayPct}%` }}
+              />
+              <div className="flex justify-between relative z-10">
+                <div className="flex flex-col items-center">
+                  <div className="w-3 h-3 rounded-full bg-primary-container border-2 border-surface-container-lowest mb-2" />
+                  <span className="text-label-sm text-on-surface">
+                    Mob Date
+                  </span>
+                  <span className="font-mono-data text-on-surface-variant text-[10px]">
+                    {fmt(jo.startDate)}
+                  </span>
+                </div>
+                <div className="flex flex-col items-center">
+                  <div className="w-3 h-3 rounded-full bg-outline-variant border-2 border-surface-container-lowest mb-2" />
+                  <span className="text-label-sm text-on-surface-variant">
+                    Demob
+                  </span>
+                  <span className="font-mono-data text-on-surface-variant text-[10px]">
+                    {fmt(jo.targetDemobDate)}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <div className="flex justify-between items-end mb-4 border-b border-outline-variant pb-2">
+              <h4 className="text-label-md text-on-surface uppercase tracking-wider">
+                Trade Allocation
+              </h4>
+              <span className="text-label-sm text-on-surface-variant">
+                Click a tile to manage
+              </span>
+            </div>
+
+            {Object.entries(byTrade).map(([trade, slots]) => {
+              const tradeFilled = slots.filter(
+                (s) => s.status !== "UNASSIGNED",
+              ).length;
+              return (
+                <div className="mb-6" key={trade}>
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-label-md text-on-surface">
+                      {trade}
+                    </span>
+                    <span
+                      className={`font-mono-data text-label-sm ${tradeFilled === slots.length ? "text-green-600" : "text-on-surface-variant"}`}
+                    >
+                      {tradeFilled}/{slots.length}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
+                    {slots.map((slot) =>
+                      slot.status === "UNASSIGNED" ? (
+                        <button
+                          key={slot._id}
+                          onClick={() =>
+                            openDrawer(jo._id, slot._idx, slot._id)
+                          }
+                          className="aspect-square bg-surface-container-lowest border-2 border-dashed border-outline-variant rounded flex items-center justify-center hover:border-primary-container hover:bg-surface-container-low transition-colors group"
+                          title={`Unassigned — Slot ${slot.slotNumber}`}
+                        >
+                          <span className="text-outline-variant group-hover:text-primary-container text-lg leading-none">
+                            +
+                          </span>
+                        </button>
+                      ) : (
+                        <button
+                          key={slot._id}
+                          onClick={() =>
+                            setActiveSlot({ slot, slotIdx: slot._idx })
+                          }
+                          className="aspect-square bg-surface border border-outline-variant rounded flex flex-col items-center justify-center p-1 relative hover:border-primary-container transition-colors"
+                          title={slot.assignedEmployee?.name}
+                        >
+                          <div className="w-6 h-6 bg-surface-container-high rounded-full mb-1 flex items-center justify-center text-[10px] font-bold text-on-surface-variant">
+                            {initials(slot.assignedEmployee?.name)}
+                          </div>
+                          <span className="font-mono-data text-[9px] truncate w-full text-center text-on-surface-variant">
+                            {slot.assignedEmployee?.employeeId || "—"}
+                          </span>
+                          <div
+                            className={`absolute top-1 right-1 w-1.5 h-1.5 rounded-full ${STATUS_DOT[slot.status] || "bg-outline"}`}
+                          />
+                        </button>
+                      ),
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="p-4 border-t border-outline-variant sticky bottom-0 bg-surface-container-lowest flex justify-end">
+          <button className={btnOutline} onClick={onClose}>
+            Close
+          </button>
+        </div>
+
+        {activeSlot && (
+          <SlotActionPopover
+            joId={jo._id}
+            slot={activeSlot.slot}
+            slotIdx={activeSlot.slotIdx}
+            onClose={() => setActiveSlot(null)}
+          />
+        )}
+      </div>
+    </>
+  );
+}
+
+const STATUS_DOT = {
+  RESERVED: "bg-amber-500",
+  BOOKED: "bg-indigo-500",
+  MOBILIZED: "bg-blue-500",
+  VACATION: "bg-purple-500",
+};
+
+function initials(name) {
+  if (!name) return "?";
+  const parts = name.trim().split(/\s+/);
+  return (parts[0][0] + (parts[1]?.[0] || "")).toUpperCase();
+}
+
+// Small anchored popover for a filled slot tile — worker detail + the same
+// advance/release actions the old inline slot cards had, just reached via a
+// click instead of always being on-screen, to make room for the compact
+// tile grid.
+function SlotActionPopover({ joId, slot, onClose }) {
+  const requestAdvance = useDashboardStore((s) => s.requestAdvance);
+  const requestSwap = useDashboardStore((s) => s.requestSwap);
+  const emp = slot.assignedEmployee;
+  const stageIdx = STAGES.indexOf(slot.status);
+
+  return (
+    <div
+      className="absolute w-64 bg-surface-container-lowest border border-outline-variant shadow-[0_4px_12px_rgba(15,23,42,0.12)] rounded z-50 p-3"
+      style={{ top: "18%", right: 24 }}
+    >
+      <div className="flex justify-between items-start mb-2 pb-2 border-b border-outline-variant">
+        <div>
+          <div className="text-body-sm font-semibold text-on-surface">
+            {emp?.name}
+          </div>
+          <div className="font-mono-data text-[10px] text-on-surface-variant">
+            {emp?.employeeId} · Slot {slot.slotNumber}
+          </div>
+        </div>
+        <button
+          onClick={onClose}
+          className="text-on-surface-variant hover:text-on-surface"
+        >
+          <X size={14} />
+        </button>
+      </div>
+
+      <div className="mb-2.5">
         <StatusBadge status={slot.status} />
       </div>
 
-      <div>
-        <div className="flex items-center gap-0.5">
-          {STAGES.map((_, i) => (
-            <div
-              key={i}
-              className={`flex-1 h-1 rounded-full ${
-                i < stageIdx
-                  ? "bg-indigo-500"
-                  : i === stageIdx
-                    ? "bg-primary-container"
-                    : "bg-surface-container-high"
-              }`}
-            />
-          ))}
-        </div>
-        <div className="flex justify-between text-[8.5px] font-semibold text-outline mt-1">
-          {STAGES.map((st, i) => (
-            <span
-              key={st}
-              className={i === stageIdx ? "text-primary-container" : ""}
-            >
-              {st[0]}
-              {st.slice(1, 3).toLowerCase()}
-            </span>
-          ))}
-        </div>
+      <div className="flex items-center gap-0.5 mb-3">
+        {STAGES.map((_, i) => (
+          <div
+            key={i}
+            className={`flex-1 h-1 rounded-full ${
+              i < stageIdx
+                ? "bg-indigo-500"
+                : i === stageIdx
+                  ? "bg-primary-container"
+                  : "bg-surface-container-high"
+            }`}
+          />
+        ))}
       </div>
 
       <div className="flex gap-1.5">
         {stageIdx < STAGES.length - 1 ? (
           <button
             className="flex-1 border border-outline-variant bg-surface-container-lowest rounded px-2.5 py-1.5 text-label-sm text-on-surface hover:bg-surface-container-low"
-            onClick={() => requestAdvance(joId, slot._id, emp, slot.status)}
+            onClick={() => {
+              requestAdvance(joId, slot._id, emp, slot.status);
+              onClose();
+            }}
           >
             → {STAGES[stageIdx + 1]}
           </button>
@@ -312,21 +461,16 @@ function Slot({ joId, slot, slotIdx }) {
           </span>
         )}
         <button
-          className={iconBtn}
+          className="px-2.5 py-1.5 rounded border border-outline-variant bg-surface-container-lowest text-label-sm text-on-surface-variant hover:bg-surface-container-low"
           title="Release worker"
-          onClick={() => requestSwap(joId, slot._id, emp, slot.status)}
+          onClick={() => {
+            requestSwap(joId, slot._id, emp, slot.status);
+            onClose();
+          }}
         >
           ✕
         </button>
       </div>
     </div>
   );
-}
-
-function fmt(dateStr) {
-  return new Date(dateStr).toLocaleDateString("en-GB", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
 }

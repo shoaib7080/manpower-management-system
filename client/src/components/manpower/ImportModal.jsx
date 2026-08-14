@@ -30,29 +30,47 @@ const OPTIONAL_COLS = [
   { col: "DOB", alt: "Date of Birth", note: "DD/MM/YYYY or Excel date serial" },
   { col: "Emirates ID", alt: "", note: "UAE residents — 784-XXXX-XXXXXXX-X" },
   { col: "Passport Number", alt: "", note: "Non-UAE residents" },
-  { col: "ADNOC Induction Expiry", alt: "", note: "Date format" },
+  {
+    col: "HSE Induction Expiry",
+    alt: "ADNOC Induction Expiry",
+    note: "Date format",
+  },
   { col: "H2S Training Expiry", alt: "H2S Expiry", note: "Date format" },
   { col: "Medical Expiry", alt: "", note: "Date format" },
-  { col: "Sea Survival Expiry", alt: "", note: "Date format — offshore only" },
+  {
+    col: "TBOSIET Expiry",
+    alt: "Sea Survival Expiry",
+    note: "Date format — offshore training",
+  },
+  {
+    col: "HSE Passport Available",
+    alt: "HSE Passport (Y/N)",
+    note: "Yes / No — flags mobilization clearance",
+  },
   {
     col: "HSE Passport Number",
     alt: "HSE Passport No",
-    note: "Document number — gates mobilization",
+    note: "Document number",
   },
   {
     col: "HSE Passport Expiry",
     alt: "",
-    note: "Date format — either number or expiry is sufficient",
+    note: "Date format",
+  },
+  {
+    col: "CICPA Pass Available",
+    alt: "CICPA Available / (Y/N)",
+    note: "Yes / No — flags mobilization clearance",
   },
   {
     col: "CICPA Number",
     alt: "CICPA Pass No  or  CICPA No",
-    note: "Document number — gates mobilization",
+    note: "Document number",
   },
   {
     col: "CICPA Expiry",
     alt: "CICPA Pass Expiry",
-    note: "Date format — either number or expiry is sufficient",
+    note: "Date format",
   },
 ];
 

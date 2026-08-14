@@ -6,9 +6,10 @@ import {
   getEmployees,
   importEmployeesFromExcel,
   updateEmployee,
+  uploadCertificate,
 } from "../controllers/manpowerController.js";
 import { protect, requireLevel } from "../middleware/authMiddleware.js";
-import upload from "../middleware/uploadMiddleware.js";
+import upload, { certUpload } from "../middleware/uploadMiddleware.js";
 
 const router = express.Router();
 
@@ -28,6 +29,9 @@ router.post(
   upload.single("file"),
   importEmployeesFromExcel,
 );
+
+// POST /api/manpower/upload-cert - Upload compressed certificate image
+router.post("/upload-cert", certUpload.single("file"), uploadCertificate);
 
 router.put("/:id", requireLevel(ROLE_LEVELS.PROJECT_ENGINEER), updateEmployee);
 router.delete("/:id", requireLevel(ROLE_LEVELS.ADMIN), deleteEmployee);

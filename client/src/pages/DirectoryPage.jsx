@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { Search } from "lucide-react";
+import { CircleCheck, Search } from "lucide-react";
 import { useMemo, useState } from "react";
 import { fetchEmployees } from "../api/services";
 import ComplianceDot from "../components/ComplianceDot";
@@ -8,8 +8,8 @@ import AssignToJobModal from "../components/manpower/AssignToJobModal";
 import CreateEmployeeModal from "../components/manpower/CreateEmployeeModal";
 import EmployeeDetailModal from "../components/manpower/EmployeeDetailModal";
 import ImportModal from "../components/manpower/ImportModal";
+import useTrades from "../hooks/useTrades";
 import {
-  TRADES,
   getLevel,
   hasDoc,
   isMobReady,
@@ -28,8 +28,8 @@ const DOC_OPTIONS = [
   ["", "All"],
   ["HSE", "HSE Available"],
   ["CICPA", "CICPA Available"],
-  ["BOTH", "Both Available"],
-  ["NONE", "Both Missing"],
+  ["BOTH", "Both Documents"],
+  ["NONE", "Missing Both"],
 ];
 
 const btnBase =
@@ -40,20 +40,28 @@ const iconBtn =
   "px-2.5 py-1.5 rounded border border-outline-variant bg-surface-container-lowest text-label-sm text-on-surface-variant hover:bg-surface-container-low mr-1 disabled:hover:bg-surface-container-lowest";
 
 function DocCell({ doc }) {
-  const has = !!(doc?.number || doc?.expiry);
+  const isAvailable = Boolean(doc?.available);
+  if (!isAvailable) {
+    return <span className="text-outline font-semibold">—</span>;
+  }
   return (
-    <div className="flex flex-col gap-[3px]">
-      <span
-        className={`font-mono-data text-[10.5px] ${has ? "text-on-surface" : "text-outline"}`}
-      >
-        {doc?.number || "—"}
-      </span>
-      <ComplianceDot level={!has ? "gray" : getLevel(doc?.expiry)} />
+    <div
+      className="flex items-center gap-1.5"
+      title={`Available (No: ${doc?.number || "N/A"})`}
+    >
+      <div className="w-5 h-5 rounded-full bg-green/10 flex items-center justify-center text-green shrink-0">
+        <CircleCheck
+          size={13}
+          className="text-green-500"
+          title={`Available (No: ${doc?.number || "N/A"})`}
+        />
+      </div>
     </div>
   );
 }
 
 export default function DirectoryPage() {
+  const { trades: availableTrades = [] } = useTrades();
   const [statuses, setStatuses] = useState([]);
   const [docFilter, setDocFilter] = useState("");
   const [trades, setTrades] = useState([]);
@@ -136,7 +144,7 @@ export default function DirectoryPage() {
             Master Personnel Directory
           </h1>
           <div className="text-body-sm text-on-surface-variant mt-1">
-            Single source of truth for every tradesman — status, trade & ADNOC
+            Single source of truth for every tradesman — status, trade & safety
             clearance at a glance.
           </div>
         </div>
@@ -187,7 +195,7 @@ export default function DirectoryPage() {
             <div className="text-label-sm uppercase text-on-surface-variant mb-2">
               Trade
             </div>
-            {TRADES.map((tr) => (
+            {availableTrades.map((tr) => (
               <label
                 key={tr}
                 className="flex items-center gap-2 text-body-sm text-on-surface py-1 cursor-pointer"
@@ -289,10 +297,7 @@ export default function DirectoryPage() {
                 </thead>
                 <tbody>
                   {filtered.map((e) => (
-                    <tr
-                      key={e._id}
-                      className="hover:bg-surface-container-low"
-                    >
+                    <tr key={e._id} className="hover:bg-surface-container-low">
                       <td className="font-mono-data text-body-sm px-3.5 py-2.5 border-b border-outline-variant">
                         {e.employeeId}
                       </td>
@@ -323,7 +328,10 @@ export default function DirectoryPage() {
                         <DocCell doc={e.documents?.cicpaPass} />
                       </td>
                       <td className="px-3.5 py-2.5 border-b border-outline-variant whitespace-nowrap">
-                        <button className={iconBtn} onClick={() => setViewEmp(e)}>
+                        <button
+                          className={iconBtn}
+                          onClick={() => setViewEmp(e)}
+                        >
                           View
                         </button>
                         <button

@@ -6,9 +6,13 @@ const specializationSchema = new mongoose.Schema(
     name: { type: String, required: true, trim: true },
     nameLower: { type: String },
     trades: {
-      type: [{ type: String, enum: TRADES }],
+      type: [{ type: String, trim: true }],
       required: true,
       validate: (arr) => Array.isArray(arr) && arr.length > 0,
+    },
+    certifications: {
+      type: [{ type: String, trim: true }],
+      default: [],
     },
     active: { type: Boolean, default: true },
   },
@@ -17,9 +21,8 @@ const specializationSchema = new mongoose.Schema(
 
 specializationSchema.index({ nameLower: 1 }, { unique: true });
 
-specializationSchema.pre("save", async function (next) {
+specializationSchema.pre("save", async function () {
   this.nameLower = this.name.toLowerCase();
-  next();
 });
 
 export default mongoose.model("Specialization", specializationSchema);

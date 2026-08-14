@@ -14,7 +14,9 @@ import {
   btnPrimary,
   inputCls,
 } from "../ui/Modal";
-import { EMP_STATUSES, TRADES, isMobReady, toDateInput } from "./employeeUtils";
+import CertificationsSection from "./CertificationsSection";
+import useTrades from "../../hooks/useTrades";
+import { EMP_STATUSES, isMobReady, toDateInput } from "./employeeUtils";
 
 const sectionCls =
   "text-label-sm font-bold uppercase tracking-wide text-outline mt-4 mb-2 first:mt-0";
@@ -22,6 +24,7 @@ const gridCls = "grid grid-cols-2 gap-2.5";
 
 export default function EmployeeDetailModal({ emp, onClose }) {
   const qc = useQueryClient();
+  const { trades = [] } = useTrades();
   const [form, setForm] = useState({
     name: emp.name || "",
     trade: emp.trade || "",
@@ -30,18 +33,27 @@ export default function EmployeeDetailModal({ emp, onClose }) {
     dob: toDateInput(emp.dob),
     emiratesId: emp.emiratesId || "",
     passportNumber: emp.passportNumber || "",
+    certifications: emp.certifications || [],
     trainings: {
-      adnocInductionExpiry: toDateInput(emp.trainings?.adnocInductionExpiry),
+      hseInductionExpiry: toDateInput(
+        emp.trainings?.hseInductionExpiry ||
+          emp.trainings?.adnocInductionExpiry,
+      ),
       h2sExpiry: toDateInput(emp.trainings?.h2sExpiry),
       medicalExpiry: toDateInput(emp.trainings?.medicalExpiry),
-      seaSurvivalExpiry: toDateInput(emp.trainings?.seaSurvivalExpiry),
+      tbosietExpiry: toDateInput(
+        emp.trainings?.tbosietExpiry ||
+          emp.trainings?.seaSurvivalExpiry,
+      ),
     },
     documents: {
       hsePassport: {
+        available: Boolean(emp.documents?.hsePassport?.available),
         number: emp.documents?.hsePassport?.number || "",
         expiry: toDateInput(emp.documents?.hsePassport?.expiry),
       },
       cicpaPass: {
+        available: Boolean(emp.documents?.cicpaPass?.available),
         number: emp.documents?.cicpaPass?.number || "",
         expiry: toDateInput(emp.documents?.cicpaPass?.expiry),
       },
@@ -55,6 +67,10 @@ export default function EmployeeDetailModal({ emp, onClose }) {
     queryFn: () => getSpecializations(form.trade).then((r) => r.data),
     enabled: !!form.trade,
   });
+
+  const selectedSpecializationObj = specializations.find(
+    (s) => s.name === form.specialization,
+  );
 
   const set = (path, val) =>
     setForm((prev) => {
@@ -89,7 +105,7 @@ export default function EmployeeDetailModal({ emp, onClose }) {
 
   return (
     <Overlay onBackdropClick={onClose}>
-      <div className="bg-surface-container-lowest rounded-xl overflow-hidden shadow-[0_4px_12px_rgba(15,23,42,0.08)] w-[520px] max-w-full max-h-[85vh] overflow-y-auto">
+      <div className="bg-surface-container-lowest rounded-xl overflow-hidden shadow-[0_4px_12px_rgba(15,23,42,0.08)] w-[620px] max-w-full max-h-[88vh] overflow-y-auto">
         {!isMobReady(emp) && (
           <div className="text-body-sm bg-error-container/40 text-on-error-container m-3 p-2.5 rounded">
             Not assignable — missing valid HSE Passport or CICPA Pass. Update
@@ -127,7 +143,7 @@ export default function EmployeeDetailModal({ emp, onClose }) {
                   set("specialization", "");
                 }}
               >
-                {TRADES.map((t) => (
+                {trades.map((t) => (
                   <option key={t} value={t}>
                     {t}
                   </option>
@@ -183,55 +199,112 @@ export default function EmployeeDetailModal({ emp, onClose }) {
             </Field>
           </div>
 
-          <div className={sectionCls}>Documents</div>
-          <div className={gridCls}>
-            <Field label="HSE Passport No.">
-              <input
-                className={inputCls}
-                value={form.documents.hsePassport.number}
-                onChange={(e) =>
-                  set("documents.hsePassport.number", e.target.value)
-                }
-              />
-            </Field>
-            <Field label="HSE Passport Expiry">
-              <input
-                type="date"
-                className={inputCls}
-                value={form.documents.hsePassport.expiry}
-                onChange={(e) =>
-                  set("documents.hsePassport.expiry", e.target.value)
-                }
-              />
-            </Field>
-            <Field label="CICPA No.">
-              <input
-                className={inputCls}
-                value={form.documents.cicpaPass.number}
-                onChange={(e) =>
-                  set("documents.cicpaPass.number", e.target.value)
-                }
-              />
-            </Field>
-            <Field label="CICPA Expiry">
-              <input
-                type="date"
-                className={inputCls}
-                value={form.documents.cicpaPass.expiry}
-                onChange={(e) =>
-                  set("documents.cicpaPass.expiry", e.target.value)
-                }
-              />
-            </Field>
+          <div className={sectionCls}>Documents (Gating Mobilisation)</div>
+          <div className="flex flex-col gap-3">
+            {/* HSE Passport Block */}
+            <div className="p-3 rounded-lg border border-outline-variant bg-surface-container-low/50 flex flex-col gap-2.5">
+              <label className="flex items-center gap-2 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  className="w-4 h-4 rounded accent-primary-container cursor-pointer"
+                  checked={form.documents.hsePassport.available}
+                  onChange={(e) => {
+                    const isAvail = e.target.checked;
+                    set("documents.hsePassport.available", isAvail);
+                  }}
+                />
+                <span className="text-label-md font-semibold text-on-surface">
+                  HSE Passport Available
+                </span>
+                {!form.documents.hsePassport.available && (
+                  <span className="text-[11px] text-outline ml-auto">
+                    (Enable to enter document details)
+                  </span>
+                )}
+              </label>
+
+              <div className="grid grid-cols-2 gap-2.5">
+                <Field label="HSE Passport No.">
+                  <input
+                    disabled={!form.documents.hsePassport.available}
+                    className={`${inputCls} disabled:opacity-40 disabled:cursor-not-allowed`}
+                    placeholder={form.documents.hsePassport.available ? "e.g. HSE-12345" : "Mark available to enter"}
+                    value={form.documents.hsePassport.number}
+                    onChange={(e) =>
+                      set("documents.hsePassport.number", e.target.value)
+                    }
+                  />
+                </Field>
+                <Field label="HSE Passport Expiry">
+                  <input
+                    type="date"
+                    disabled={!form.documents.hsePassport.available}
+                    className={`${inputCls} disabled:opacity-40 disabled:cursor-not-allowed`}
+                    value={form.documents.hsePassport.expiry}
+                    onChange={(e) =>
+                      set("documents.hsePassport.expiry", e.target.value)
+                    }
+                  />
+                </Field>
+              </div>
+            </div>
+
+            {/* CICPA Pass Block */}
+            <div className="p-3 rounded-lg border border-outline-variant bg-surface-container-low/50 flex flex-col gap-2.5">
+              <label className="flex items-center gap-2 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  className="w-4 h-4 rounded accent-primary-container cursor-pointer"
+                  checked={form.documents.cicpaPass.available}
+                  onChange={(e) => {
+                    const isAvail = e.target.checked;
+                    set("documents.cicpaPass.available", isAvail);
+                  }}
+                />
+                <span className="text-label-md font-semibold text-on-surface">
+                  CICPA Pass Available
+                </span>
+                {!form.documents.cicpaPass.available && (
+                  <span className="text-[11px] text-outline ml-auto">
+                    (Enable to enter document details)
+                  </span>
+                )}
+              </label>
+
+              <div className="grid grid-cols-2 gap-2.5">
+                <Field label="CICPA No.">
+                  <input
+                    disabled={!form.documents.cicpaPass.available}
+                    className={`${inputCls} disabled:opacity-40 disabled:cursor-not-allowed`}
+                    placeholder={form.documents.cicpaPass.available ? "e.g. CICPA-98765" : "Mark available to enter"}
+                    value={form.documents.cicpaPass.number}
+                    onChange={(e) =>
+                      set("documents.cicpaPass.number", e.target.value)
+                    }
+                  />
+                </Field>
+                <Field label="CICPA Expiry">
+                  <input
+                    type="date"
+                    disabled={!form.documents.cicpaPass.available}
+                    className={`${inputCls} disabled:opacity-40 disabled:cursor-not-allowed`}
+                    value={form.documents.cicpaPass.expiry}
+                    onChange={(e) =>
+                      set("documents.cicpaPass.expiry", e.target.value)
+                    }
+                  />
+                </Field>
+              </div>
+            </div>
           </div>
 
-          <div className={sectionCls}>Trainings</div>
+          <div className={sectionCls}>Trainings & Clearances</div>
           <div className={gridCls}>
             {[
-              ["ADNOC Induction Expiry", "trainings.adnocInductionExpiry"],
+              ["HSE Induction Expiry", "trainings.hseInductionExpiry"],
               ["H2S Expiry", "trainings.h2sExpiry"],
               ["Medical Expiry", "trainings.medicalExpiry"],
-              ["Sea Survival Expiry", "trainings.seaSurvivalExpiry"],
+              ["TBOSIET Expiry", "trainings.tbosietExpiry"],
             ].map(([label, path]) => (
               <Field label={label} key={path}>
                 <input
@@ -243,6 +316,14 @@ export default function EmployeeDetailModal({ emp, onClose }) {
               </Field>
             ))}
           </div>
+
+          <CertificationsSection
+            certifications={form.certifications || []}
+            onChange={(certs) =>
+              setForm((prev) => ({ ...prev, certifications: certs }))
+            }
+            selectedSpecializationObj={selectedSpecializationObj}
+          />
         </ModalBody>
 
         <div className="px-[18px] py-3 border-t border-outline-variant flex justify-between items-center bg-surface-container-low">

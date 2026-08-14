@@ -13,22 +13,31 @@ import {
   btnPrimary,
   inputCls,
 } from "../ui/Modal";
-import { TRADES } from "./employeeUtils";
+import CertificationsSection from "./CertificationsSection";
+import useTrades from "../../hooks/useTrades";
 
 export default function CreateEmployeeModal({ onClose }) {
   const qc = useQueryClient();
+  const { trades = [] } = useTrades();
   const [formData, setFormData] = useState({
     employeeId: "",
     name: "",
-    trade: "Fabricator",
+    trade: "",
     specialization: "",
     dob: "",
     emiratesId: "",
     passportNumber: "",
-    adnocInductionExpiry: "",
+    certifications: [],
+    hsePassportAvailable: false,
+    hsePassportNumber: "",
+    hsePassportExpiry: "",
+    cicpaPassAvailable: false,
+    cicpaPassNumber: "",
+    cicpaPassExpiry: "",
+    hseInductionExpiry: "",
     h2sExpiry: "",
     medicalExpiry: "",
-    seaSurvivalExpiry: "",
+    tbosietExpiry: "",
   });
   const [error, setError] = useState("");
 
@@ -38,8 +47,17 @@ export default function CreateEmployeeModal({ onClose }) {
     enabled: !!formData.trade,
   });
 
-  const handleChange = (e) =>
-    setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+  const selectedSpecializationObj = specializations.find(
+    (s) => s.name === formData.specialization,
+  );
+
+  const handleChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: type === "checkbox" ? checked : value,
+    }));
+  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -51,16 +69,39 @@ export default function CreateEmployeeModal({ onClose }) {
     mutation.mutate({
       employeeId: formData.employeeId.trim(),
       name: formData.name.trim(),
-      trade: formData.trade,
+      trade: formData.trade || (trades.length > 0 ? trades[0] : ""),
       specialization: formData.specialization || undefined,
       dob: formData.dob || null,
       emiratesId: formData.emiratesId.trim() || undefined,
       passportNumber: formData.passportNumber.trim() || undefined,
+      certifications: formData.certifications || [],
+      documents: {
+        hsePassport: {
+          available: Boolean(formData.hsePassportAvailable),
+          number: formData.hsePassportAvailable
+            ? formData.hsePassportNumber.trim() || null
+            : null,
+          expiry: formData.hsePassportAvailable
+            ? formData.hsePassportExpiry || null
+            : null,
+        },
+        cicpaPass: {
+          available: Boolean(formData.cicpaPassAvailable),
+          number: formData.cicpaPassAvailable
+            ? formData.cicpaPassNumber.trim() || null
+            : null,
+          expiry: formData.cicpaPassAvailable
+            ? formData.cicpaPassExpiry || null
+            : null,
+        },
+      },
       trainings: {
-        adnocInductionExpiry: formData.adnocInductionExpiry || null,
+        hseInductionExpiry: formData.hseInductionExpiry || null,
+        adnocInductionExpiry: formData.hseInductionExpiry || null,
         h2sExpiry: formData.h2sExpiry || null,
         medicalExpiry: formData.medicalExpiry || null,
-        seaSurvivalExpiry: formData.seaSurvivalExpiry || null,
+        tbosietExpiry: formData.tbosietExpiry || null,
+        seaSurvivalExpiry: formData.tbosietExpiry || null,
       },
     });
   };
@@ -124,11 +165,11 @@ export default function CreateEmployeeModal({ onClose }) {
               <Field label="Trade" required>
                 <select
                   name="trade"
-                  value={formData.trade}
+                  value={formData.trade || (trades.length > 0 ? trades[0] : "")}
                   onChange={handleChange}
                   className={inputCls}
                 >
-                  {TRADES.map((t) => (
+                  {trades.map((t) => (
                     <option key={t} value={t}>
                       {t}
                     </option>
@@ -185,16 +226,111 @@ export default function CreateEmployeeModal({ onClose }) {
             </div>
 
             <hr className="border-outline-variant my-3" />
+            <h4 className="text-label-sm uppercase text-on-surface-variant mb-2">
+              Documents (Gating Mobilisation)
+            </h4>
+
+            <div className="flex flex-col gap-3 mb-3">
+              {/* HSE Passport */}
+              <div className="p-3 rounded-lg border border-outline-variant bg-surface-container-low/50 flex flex-col gap-2.5">
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    name="hsePassportAvailable"
+                    className="w-4 h-4 rounded accent-primary-container cursor-pointer"
+                    checked={formData.hsePassportAvailable}
+                    onChange={handleChange}
+                  />
+                  <span className="text-label-md font-semibold text-on-surface">
+                    HSE Passport Available
+                  </span>
+                  {!formData.hsePassportAvailable && (
+                    <span className="text-[11px] text-outline ml-auto">
+                      (Check to enter details)
+                    </span>
+                  )}
+                </label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <Field label="HSE Passport Number">
+                    <input
+                      type="text"
+                      name="hsePassportNumber"
+                      disabled={!formData.hsePassportAvailable}
+                      value={formData.hsePassportNumber}
+                      onChange={handleChange}
+                      placeholder={formData.hsePassportAvailable ? "e.g. HSE-12345" : "Mark available to enter"}
+                      className={`${inputCls} disabled:opacity-40 disabled:cursor-not-allowed`}
+                    />
+                  </Field>
+                  <Field label="HSE Passport Expiry">
+                    <input
+                      type="date"
+                      name="hsePassportExpiry"
+                      disabled={!formData.hsePassportAvailable}
+                      value={formData.hsePassportExpiry}
+                      onChange={handleChange}
+                      className={`${inputCls} disabled:opacity-40 disabled:cursor-not-allowed`}
+                    />
+                  </Field>
+                </div>
+              </div>
+
+              {/* CICPA Pass */}
+              <div className="p-3 rounded-lg border border-outline-variant bg-surface-container-low/50 flex flex-col gap-2.5">
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    name="cicpaPassAvailable"
+                    className="w-4 h-4 rounded accent-primary-container cursor-pointer"
+                    checked={formData.cicpaPassAvailable}
+                    onChange={handleChange}
+                  />
+                  <span className="text-label-md font-semibold text-on-surface">
+                    CICPA Pass Available
+                  </span>
+                  {!formData.cicpaPassAvailable && (
+                    <span className="text-[11px] text-outline ml-auto">
+                      (Check to enter details)
+                    </span>
+                  )}
+                </label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <Field label="CICPA Pass Number">
+                    <input
+                      type="text"
+                      name="cicpaPassNumber"
+                      disabled={!formData.cicpaPassAvailable}
+                      value={formData.cicpaPassNumber}
+                      onChange={handleChange}
+                      placeholder={formData.cicpaPassAvailable ? "e.g. CICPA-98765" : "Mark available to enter"}
+                      className={`${inputCls} disabled:opacity-40 disabled:cursor-not-allowed`}
+                    />
+                  </Field>
+                  <Field label="CICPA Pass Expiry">
+                    <input
+                      type="date"
+                      name="cicpaPassExpiry"
+                      disabled={!formData.cicpaPassAvailable}
+                      value={formData.cicpaPassExpiry}
+                      onChange={handleChange}
+                      className={`${inputCls} disabled:opacity-40 disabled:cursor-not-allowed`}
+                    />
+                  </Field>
+                </div>
+              </div>
+            </div>
+
+            <hr className="border-outline-variant my-3" />
             <h4 className="text-label-sm uppercase text-on-surface-variant mb-3">
-              ADNOC &amp; Safety Clearance Expiry Dates
+              HSE &amp; Safety Clearance Expiry Dates
             </h4>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <Field label="ADNOC Induction Expiry">
+              <Field label="HSE Induction Expiry">
                 <input
                   type="date"
-                  name="adnocInductionExpiry"
-                  value={formData.adnocInductionExpiry}
+                  name="hseInductionExpiry"
+                  value={formData.hseInductionExpiry}
                   onChange={handleChange}
                   className={inputCls}
                 />
@@ -217,16 +353,24 @@ export default function CreateEmployeeModal({ onClose }) {
                   className={inputCls}
                 />
               </Field>
-              <Field label="Sea Survival Expiry">
+              <Field label="TBOSIET Expiry">
                 <input
                   type="date"
-                  name="seaSurvivalExpiry"
-                  value={formData.seaSurvivalExpiry}
+                  name="tbosietExpiry"
+                  value={formData.tbosietExpiry}
                   onChange={handleChange}
                   className={inputCls}
                 />
               </Field>
             </div>
+
+            <CertificationsSection
+              certifications={formData.certifications || []}
+              onChange={(certs) =>
+                setFormData((prev) => ({ ...prev, certifications: certs }))
+              }
+              selectedSpecializationObj={selectedSpecializationObj}
+            />
           </ModalBody>
 
           <ModalFoot>

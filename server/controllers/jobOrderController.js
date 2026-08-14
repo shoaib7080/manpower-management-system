@@ -236,25 +236,13 @@ export const getSlotSuggestions = async (req, res, next) => {
 
     const now = new Date();
 
-    // Base query: correct trade, available status, and at least one document field
-    // present on BOTH hsePassport and cicpaPass (number OR expiry is enough)
+    // Base query: correct trade, available status, and document availability
+    // present on BOTH hsePassport and cicpaPass
     const query = {
       trade,
       status: EMPLOYEE_STATUS.AVAILABLE,
-      $and: [
-        {
-          $or: [
-            { "documents.hsePassport.number": { $nin: [null, ""] } },
-            { "documents.hsePassport.expiry": { $ne: null } },
-          ],
-        },
-        {
-          $or: [
-            { "documents.cicpaPass.number": { $nin: [null, ""] } },
-            { "documents.cicpaPass.expiry": { $ne: null } },
-          ],
-        },
-      ],
+      "documents.hsePassport.available": true,
+      "documents.cicpaPass.available": true,
     };
 
     // Additional training checks per client category (still enforced on top of documents)
@@ -405,20 +393,13 @@ export const assignEmployeeToSlot = async (req, res, next) => {
     }
 
     // Mobilization readiness gate: both HSE Passport and CICPA Pass must have
-    // a number OR a future/present expiry date
-    const now2 = new Date();
-    const hasHse =
-      employee.documents?.hsePassport?.number?.trim() ||
-      (employee.documents?.hsePassport?.expiry &&
-        new Date(employee.documents.hsePassport.expiry) >= now2);
-    const hasCicpa =
-      employee.documents?.cicpaPass?.number?.trim() ||
-      (employee.documents?.cicpaPass?.expiry &&
-        new Date(employee.documents.cicpaPass.expiry) >= now2);
+    // document availability marked true
+    const hasHse = Boolean(employee.documents?.hsePassport?.available);
+    const hasCicpa = Boolean(employee.documents?.cicpaPass?.available);
 
     if (!hasHse || !hasCicpa) {
       return res.status(400).json({
-        message: `${employee.name} cannot be assigned — missing valid ${!hasHse ? "HSE Passport" : "CICPA Pass"}. Upload the document number or a valid expiry date first.`,
+        message: `${employee.name} cannot be assigned — missing valid ${!hasHse ? "HSE Passport" : "CICPA Pass"}. Mark document availability in the profile first.`,
       });
     }
 
