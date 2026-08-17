@@ -13,7 +13,7 @@ const generateToken = (id, level) => {
 // @desc    Authenticate user & get token
 // @route   POST /api/auth/login
 // @access  Public
-export const loginUser = async (req, res) => {
+export const loginUser = async (req, res, next) => {
   try {
     const { email, password } = req.body;
 
@@ -37,14 +37,14 @@ export const loginUser = async (req, res) => {
       res.status(401).json({ message: "Invalid email or password." });
     }
   } catch (error) {
-    res.status(500).json({ message: "Login failed", error: error.message });
+    next(error);
   }
 };
 
 // @desc    Register a new user (Restricted to Level 1 Admin)
 // @route   POST /api/auth/register
 // @access  Protected (Admin Level 1 Only)
-export const registerUser = async (req, res) => {
+export const registerUser = async (req, res, next) => {
   try {
     const { name, email, password, level } = req.body;
 
@@ -81,26 +81,22 @@ export const registerUser = async (req, res) => {
       },
     });
   } catch (error) {
-    res
-      .status(500)
-      .json({ message: "User registration failed", error: error.message });
+    next(error);
   }
 };
 
-export const getUsers = async (req, res) => {
+export const getUsers = async (req, res, next) => {
   try {
     const users = await User.find({})
       .select("-password")
       .sort({ level: 1, createdAt: 1 });
     res.status(200).json(users);
   } catch (error) {
-    res
-      .status(500)
-      .json({ message: "Failed to fetch users", error: error.message });
+    next(error);
   }
 };
 
-export const deleteUser = async (req, res) => {
+export const deleteUser = async (req, res, next) => {
   try {
     if (req.params.id === req.user._id.toString())
       return res
@@ -112,13 +108,11 @@ export const deleteUser = async (req, res) => {
 
     res.status(200).json({ message: `User ${user.name} deleted.` });
   } catch (error) {
-    res
-      .status(500)
-      .json({ message: "Failed to delete user", error: error.message });
+    next(error);
   }
 };
 
-export const updateUser = async (req, res) => {
+export const updateUser = async (req, res, next) => {
   try {
     const { name, email, password, level } = req.body;
 
@@ -139,8 +133,6 @@ export const updateUser = async (req, res) => {
       level: updated.level,
     });
   } catch (error) {
-    res
-      .status(500)
-      .json({ message: "Failed to update user", error: error.message });
+    next(error);
   }
 };

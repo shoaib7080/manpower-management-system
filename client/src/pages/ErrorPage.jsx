@@ -1,5 +1,12 @@
 import { isRouteErrorResponse, useNavigate, useRouteError } from 'react-router-dom';
 
+const btnPrimary =
+  "inline-flex items-center gap-1.5 px-3.5 py-2 rounded text-label-md bg-primary-container text-on-primary font-semibold hover:bg-primary";
+const btnOutline =
+  "inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-label-sm border border-outline-variant bg-surface-container-lowest text-on-surface hover:bg-surface-container-low";
+const btnPrimarySm =
+  "inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-label-sm bg-primary-container text-on-primary font-semibold hover:bg-primary";
+
 // Full-page error — shown when the layout itself crashes
 export default function ErrorPage() {
   const error = useRouteError();
@@ -14,27 +21,18 @@ export default function ErrorPage() {
     : error?.message || 'An unexpected error occurred.';
 
   return (
-    <div style={{
-      minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
-      background: 'var(--paper, #EEF1F2)', padding: 24,
-    }}>
-      <div style={{
-        background: '#fff', border: '1px solid var(--line, #DCE2E4)', borderRadius: 8,
-        padding: '36px 40px', maxWidth: 480, width: '100%',
-        boxShadow: '0 8px 24px -8px rgba(20,32,43,0.2)', textAlign: 'center',
-      }}>
-        <div style={{
-          width: 48, height: 48, borderRadius: '50%', background: 'var(--red-bg, #FBE7E7)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          margin: '0 auto 16px', fontSize: 22,
-        }}>⚠</div>
-        <h2 style={{ fontFamily: 'Oswald, sans-serif', textTransform: 'uppercase', fontSize: 18, marginBottom: 8 }}>
+    <div className="min-h-screen flex items-center justify-center bg-background p-6">
+      <div className="bg-surface-container-lowest border border-outline-variant rounded-lg py-9 px-10 max-w-[480px] w-full shadow-[0_8px_24px_-8px_rgba(20,32,43,0.2)] text-center">
+        <div className="w-12 h-12 rounded-[9999px] bg-error-container/40 flex items-center justify-center mx-auto mb-4 text-[22px]">
+          ⚠
+        </div>
+        <h2 className="text-headline-sm uppercase text-on-background mb-2">
           {title}
         </h2>
-        <p style={{ fontSize: 13, color: 'var(--steel-500, #4A6373)', marginBottom: 24, lineHeight: 1.6 }}>
+        <p className="text-body-sm text-on-surface-variant mb-6 leading-relaxed">
           {message}
         </p>
-        <button className="btn btn-primary" onClick={() => navigate('/')}>
+        <button className={btnPrimary} onClick={() => navigate('/')}>
           ← Back to Dashboard
         </button>
       </div>
@@ -52,25 +50,21 @@ export function PageErrorElement() {
     : error?.message || 'This page encountered an unexpected error.';
 
   return (
-    <div style={{
-      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-      minHeight: 400, gap: 16, padding: 32,
-    }}>
-      <div style={{
-        width: 44, height: 44, borderRadius: '50%', background: 'var(--red-bg, #FBE7E7)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20,
-      }}>⚠</div>
-      <div style={{ textAlign: 'center' }}>
-        <h3 style={{ fontFamily: 'Oswald, sans-serif', textTransform: 'uppercase', fontSize: 15, marginBottom: 6 }}>
+    <div className="flex flex-col items-center justify-center min-h-[400px] gap-4 p-8">
+      <div className="w-11 h-11 rounded-[9999px] bg-error-container/40 flex items-center justify-center text-xl">
+        ⚠
+      </div>
+      <div className="text-center">
+        <h3 className="text-body-lg font-semibold uppercase text-on-background mb-1.5">
           Page Error
         </h3>
-        <p style={{ fontSize: 12.5, color: 'var(--steel-500, #4A6373)', maxWidth: 360, lineHeight: 1.6 }}>
+        <p className="text-body-sm text-on-surface-variant max-w-[360px] leading-relaxed">
           {message}
         </p>
       </div>
-      <div style={{ display: 'flex', gap: 8 }}>
-        <button className="btn btn-outline btn-sm" onClick={() => navigate(0)}>↺ Retry</button>
-        <button className="btn btn-primary btn-sm" onClick={() => navigate('/')}>← Dashboard</button>
+      <div className="flex gap-2">
+        <button className={btnOutline} onClick={() => navigate(0)}>↺ Retry</button>
+        <button className={btnPrimarySm} onClick={() => navigate('/')}>← Dashboard</button>
       </div>
     </div>
   );

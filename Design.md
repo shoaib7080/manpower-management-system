@@ -1,8 +1,8 @@
 # Design
 
-Source of truth: `client/src/styles/tokens.css`. This document explains the
-system that file implements — if the two ever disagree, the CSS file wins
-and this doc should be updated to match.
+**Source of truth: `client/tailwind.config.js`.** This document explains the
+system that file implements. If the two disagree, the config file wins and
+this doc should be updated to match.
 
 ## 1. Visual philosophy
 
@@ -16,40 +16,44 @@ app, which fits an EPC contractor's internal system.
 ## 2. Colors
 
 ### Text
-| Token | Hex | Use |
-|---|---|---|
-| `--ink` | `#1f2937` | Primary text, headings |
+
+| Token      | Hex       | Use                    |
+| ---------- | --------- | ---------------------- |
+| `--ink`    | `#1f2937` | Primary text, headings |
 | `--text-2` | `#5b6672` | Secondary text, labels |
 | `--text-3` | `#9aa3ab` | Muted/placeholder text |
 
 ### Surfaces
-| Token | Hex | Use |
-|---|---|---|
-| `--paper` | `#f7f8f9` | Page background |
-| `--panel` | `#ffffff` | Cards, sidebar, tables |
-| `--line` | `#e3e6e8` | Default borders/dividers |
+
+| Token           | Hex       | Use                                |
+| --------------- | --------- | ---------------------------------- |
+| `--paper`       | `#f7f8f9` | Page background                    |
+| `--panel`       | `#ffffff` | Cards, sidebar, tables             |
+| `--line`        | `#e3e6e8` | Default borders/dividers           |
 | `--line-strong` | `#cdd2d6` | Input borders, stronger separators |
 
 ### Brand / accent
-| Token | Hex | Use |
-|---|---|---|
-| `--accent` | `#2f5d82` | Primary actions, active nav, links |
-| `--accent-dark` | `#254a69` | Primary button hover |
-| `--accent-bg` | `#eaf0f4` | Light accent background (chips, tags) |
+
+| Token           | Hex       | Use                                   |
+| --------------- | --------- | ------------------------------------- |
+| `--accent`      | `#2f5d82` | Primary actions, active nav, links    |
+| `--accent-dark` | `#254a69` | Primary button hover                  |
+| `--accent-bg`   | `#eaf0f4` | Light accent background (chips, tags) |
 
 ### Status colors
+
 These map directly to employee/slot status and are the only place bright(er)
 color appears — used consistently so status is recognizable at a glance:
 
-| Token | Hex | Meaning |
-|---|---|---|
-| `--gray` / `--gray-bg` | `#8a94a0` / `#eef0f2` | Available / neutral |
-| `--teal-light` | `#7796a2` | Reserved |
-| `--teal` / (with `#e4ebee` bg) | `#3d6e80` | Booked / progress fill |
-| `--green` / `--green-bg` | `#3f8f5f` / `#e9f4ec` | Mobilized / success |
-| `--yellow` / `--yellow-bg` | `#b8842a` / `#faf1df` | Warning (e.g. compliance expiring) |
-| `--red` / `--red-bg` | `#b84a4a` / `#fbecec` | Danger, expired, hard-lock warnings |
-| `--purple` / `--purple-bg` | `#7c6c93` / `#f0edf4` | Vacation / Halted |
+| Token                          | Hex                   | Meaning                             |
+| ------------------------------ | --------------------- | ----------------------------------- |
+| `--gray` / `--gray-bg`         | `#8a94a0` / `#eef0f2` | Available / neutral                 |
+| `--teal-light`                 | `#7796a2`             | Reserved                            |
+| `--teal` / (with `#e4ebee` bg) | `#3d6e80`             | Booked / progress fill              |
+| `--green` / `--green-bg`       | `#3f8f5f` / `#e9f4ec` | Mobilized / success                 |
+| `--yellow` / `--yellow-bg`     | `#b8842a` / `#faf1df` | Warning (e.g. compliance expiring)  |
+| `--red` / `--red-bg`           | `#b84a4a` / `#fbecec` | Danger, expired, hard-lock warnings |
+| `--purple` / `--purple-bg`     | `#7c6c93` / `#f0edf4` | Vacation / Halted                   |
 
 **Rule:** don't introduce a new color for a new status — reuse this set.
 If a new state genuinely doesn't fit (available/reserved/booked/mobilized/

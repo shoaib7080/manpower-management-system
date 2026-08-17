@@ -25,50 +25,56 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
-      <div className="bg-white border border-slate-200 rounded-md shadow-2xl w-full max-w-sm p-8 space-y-6">
+    <div className="min-h-screen bg-on-background flex items-center justify-center p-4">
+      <div className="bg-surface-container-lowest border border-outline-variant rounded-xl shadow-[0_4px_12px_rgba(15,23,42,0.16)] w-full max-w-sm p-8 space-y-6">
         <div className="text-center space-y-2">
-          <div className="inline-flex bg-blue-600 p-2.5 rounded-md text-white mb-1">
+          <div className="inline-flex bg-primary-container p-2.5 rounded-lg text-on-primary mb-1">
             <ShieldCheck size={28} />
           </div>
-          <h2 className="text-xl font-bold text-slate-900 tracking-tight">Manpower Portal</h2>
-          <p className="text-xs text-slate-500 font-mono">ADNOC Onshore & Offshore Logistics</p>
+          <h2 className="text-headline-sm text-on-background">Manpower Portal</h2>
+          <p className="font-mono-data text-[11px] text-on-surface-variant">
+            ADNOC Onshore &amp; Offshore Logistics
+          </p>
         </div>
 
         {error && (
-          <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded flex items-center gap-2">
-            <AlertCircle size={16} />
+          <div className="p-3 bg-error-container/40 border border-error/30 text-on-error-container text-body-sm rounded flex items-center gap-2">
+            <AlertCircle size={16} className="shrink-0 text-error" />
             <span>{error}</span>
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-xs font-semibold uppercase text-slate-600 mb-1">Email Address</label>
-            <div className="flex items-center border border-slate-300 rounded px-2.5 bg-slate-50 focus-within:border-blue-600">
-              <Mail size={16} className="text-slate-400" />
+            <label className="block text-label-sm uppercase tracking-wide text-on-surface-variant mb-1.5">
+              Email Address
+            </label>
+            <div className="flex items-center gap-2 border border-outline-variant rounded px-2.5 bg-surface-container-low focus-within:border-primary-container focus-within:ring-2 focus-within:ring-primary-container/15">
+              <Mail size={16} className="text-outline shrink-0" />
               <input
                 type="email"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="admin@company.com"
-                className="w-full text-xs p-2 bg-transparent outline-none"
+                className="w-full text-body-sm py-2 bg-transparent outline-none text-on-surface placeholder:text-outline"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-semibold uppercase text-slate-600 mb-1">Password</label>
-            <div className="flex items-center border border-slate-300 rounded px-2.5 bg-slate-50 focus-within:border-blue-600">
-              <Lock size={16} className="text-slate-400" />
+            <label className="block text-label-sm uppercase tracking-wide text-on-surface-variant mb-1.5">
+              Password
+            </label>
+            <div className="flex items-center gap-2 border border-outline-variant rounded px-2.5 bg-surface-container-low focus-within:border-primary-container focus-within:ring-2 focus-within:ring-primary-container/15">
+              <Lock size={16} className="text-outline shrink-0" />
               <input
                 type="password"
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full text-xs p-2 bg-transparent outline-none"
+                className="w-full text-body-sm py-2 bg-transparent outline-none text-on-surface placeholder:text-outline"
               />
             </div>
           </div>
@@ -76,13 +82,13 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={isSubmitting}
-            className="w-full bg-slate-900 text-white text-xs font-bold py-2.5 rounded hover:bg-slate-800 transition-colors disabled:opacity-50"
+            className="w-full bg-primary-container text-on-primary text-label-md font-semibold py-2.5 rounded hover:bg-primary transition-colors disabled:opacity-50"
           >
             {isSubmitting ? 'Authenticating...' : 'Sign In to Portal'}
           </button>
         </form>
 
-        <p className="text-[11px] text-center text-slate-400 font-mono pt-2">
+        <p className="font-mono-data text-[11px] text-center text-outline pt-2">
           Authorized Personnel Only • Level 1-3 RBAC Enabled
         </p>
       </div>

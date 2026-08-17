@@ -11,7 +11,9 @@ import ErrorPage, { PageErrorElement } from "./pages/ErrorPage";
 import JobOrdersPage from "./pages/JobOrdersPage";
 import LoginPage from "./pages/LoginPage";
 import SpecializationsPage from "./pages/SpecializationsPage";
+import TradesPage from "./pages/TradesPage";
 import UsersPage from "./pages/UserPage";
+import DashboardPage from "./pages/DashboardPage";
 
 const router = createBrowserRouter([
   {
@@ -19,7 +21,11 @@ const router = createBrowserRouter([
     element: <DashboardLayout />,
     errorElement: <ErrorPage />,
     children: [
-      { index: true, element: <Navigate to="/directory" replace /> },
+      {
+        index: true,
+        element: <DashboardPage />,
+        errorElement: <PageErrorElement />,
+      },
       {
         path: "directory",
         element: <DirectoryPage />,
@@ -38,6 +44,11 @@ const router = createBrowserRouter([
       {
         path: "users",
         element: <UsersPage />,
+        errorElement: <PageErrorElement />,
+      },
+      {
+        path: "trades",
+        element: <TradesPage />,
         errorElement: <PageErrorElement />,
       },
       {

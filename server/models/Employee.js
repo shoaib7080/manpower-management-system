@@ -5,30 +5,47 @@ const employeeSchema = new mongoose.Schema(
   {
     employeeId: { type: String, required: true, unique: true, index: true },
     name: { type: String, required: true },
-    trade: { type: String, required: true, enum: TRADES, index: true },
+    trade: { type: String, required: true, trim: true, index: true },
     specialization: { type: String, trim: true, default: null },
     dob: { type: Date },
     emiratesId: { type: String, unique: true, sparse: true },
     passportNumber: { type: String },
 
-    // ADNOC & Safety Certifications
+    // HSE & Safety Certifications
     trainings: {
+      hseInductionExpiry: { type: Date },
       adnocInductionExpiry: { type: Date },
       h2sExpiry: { type: Date },
       medicalExpiry: { type: Date },
+      tbosietExpiry: { type: Date },
       seaSurvivalExpiry: { type: Date },
     },
 
     documents: {
       hsePassport: {
+        available: { type: Boolean, default: false },
         number: { type: String, default: null },
         expiry: { type: Date, default: null },
       },
       cicpaPass: {
+        available: { type: Boolean, default: false },
         number: { type: String, default: null },
         expiry: { type: Date, default: null },
       },
     },
+
+    // Specialization Certifications
+    certifications: [
+      {
+        name: { type: String, required: true, trim: true },
+        certificateNumber: { type: String, trim: true, default: null },
+        issueDate: { type: Date, default: null },
+        expiryDate: { type: Date, default: null },
+        fileUrl: { type: String, default: null },
+        filePublicId: { type: String, default: null },
+        fileName: { type: String, default: null },
+      },
+    ],
 
     // Operational Status
     status: {

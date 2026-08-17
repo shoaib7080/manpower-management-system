@@ -1,18 +1,11 @@
 import { useQueryClient } from "@tanstack/react-query";
+import { X } from "lucide-react";
 import useDashboardStore from "../../store/useDashboardStore";
-
-// An employee is mobilization-ready if either number or expiry is recorded for BOTH documents
-function isMobReady(emp) {
-  const hse = emp.documents?.hsePassport;
-  const cicpa = emp.documents?.cicpaPass;
-  const hasHse = !!(hse?.number || hse?.expiry);
-  const hasCicpa = !!(cicpa?.number || cicpa?.expiry);
-  return hasHse && hasCicpa;
-}
+import { isMobReady } from "../manpower/employeeUtils";
 
 function docLevel(doc) {
   if (!doc?.number && !doc?.expiry) return "gray";
-  if (!doc.expiry) return "green"; // number present, no expiry tracked — treat as present
+  if (!doc.expiry) return "green";
   const now = new Date();
   const d = new Date(doc.expiry);
   if (d < now) return "red";
@@ -22,69 +15,15 @@ function docLevel(doc) {
   return "green";
 }
 
-function DocBadge({ label, doc }) {
-  const level = docLevel(doc);
-  const colors = {
-    green: {
-      bg: "var(--green-bg)",
-      color: "var(--green)",
-      border: "var(--green)",
-    },
-    yellow: {
-      bg: "var(--yellow-bg)",
-      color: "var(--yellow)",
-      border: "var(--yellow)",
-    },
-    red: { bg: "var(--red-bg)", color: "var(--red)", border: "var(--red)" },
-    gray: {
-      bg: "var(--gray-bg)",
-      color: "var(--gray)",
-      border: "var(--line-strong)",
-    },
-  }[level];
-
-  return (
-    <span
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 4,
-        padding: "2px 7px",
-        borderRadius: 3,
-        fontSize: 10.5,
-        fontWeight: 600,
-        background: colors.bg,
-        color: colors.color,
-        border: `1px solid ${colors.border}`,
-      }}
-    >
-      {level === "gray" ? "✗" : "✓"} {label}
-    </span>
-  );
-}
-
-function getComplianceLevel(trainings) {
-  if (!trainings) return "gray";
-  const now = new Date();
-  const soon = new Date();
-  soon.setDate(now.getDate() + 30);
-  const fields = [
-    "adnocInductionExpiry",
-    "h2sExpiry",
-    "medicalExpiry",
-    "seaSurvivalExpiry",
-  ];
-  const dates = fields.map((f) =>
-    trainings[f] ? new Date(trainings[f]) : null,
-  );
-  if (dates.some((d) => !d)) return "gray";
-  if (dates.some((d) => d < now)) return "red";
-  if (dates.some((d) => d < soon)) return "yellow";
-  return "green";
-}
+const CERT_TEXT = {
+  green: "text-green-600",
+  yellow: "text-amber-600",
+  red: "text-error",
+  gray: "text-outline",
+};
 
 export default function SuggestDrawer() {
-  const { open, joId, slotIdx, slotId } = useDashboardStore((s) => s.ui.drawer);
+  const { open, joId, slotId } = useDashboardStore((s) => s.ui.drawer);
   const closeDrawer = useDashboardStore((s) => s.closeDrawer);
   const openAssignAudit = useDashboardStore((s) => s.openAssignAudit);
 
@@ -93,63 +32,89 @@ export default function SuggestDrawer() {
   const jo = open ? jobOrders.find((j) => j._id === joId) : null;
   const slot = jo ? jo.slots.find((s) => s._id === slotId) : null;
 
+  if (!open || !slot) return null;
+
   const allEmployees = qc.getQueryData(["employees"])?.employees || [];
-  const candidates = slot
-    ? allEmployees.filter(
-        (e) =>
-          e.trade === slot.trade && e.status === "AVAILABLE" && isMobReady(e),
-      )
-    : [];
+  const candidates = allEmployees.filter(
+    (e) => e.trade === slot.trade && e.status === "AVAILABLE" && isMobReady(e),
+  );
+  const shown = candidates.slice(0, 4);
 
   return (
-    <>
-      <div
-        className={`drawer-overlay${open ? " show" : ""}`}
-        onClick={closeDrawer}
-      />
-      <div className={`drawer${open ? " show" : ""}`}>
-        {slot && (
-          <>
-            <div className="drawer-head">
-              <h3>Suggested {slot.trade}s</h3>
-              <div className="sub">
-                {jo.jobOrderNumber} · {slot.trade} Slot {slot.slotNumber} · HSE
-                Passport & CICPA required
-              </div>
-            </div>
-            <div className="drawer-body">
-              {candidates.length === 0 ? (
-                <div className="empty-state">
-                  No available {slot.trade.toLowerCase()}s with both HSE
-                  Passport and CICPA Pass on record.
-                </div>
-              ) : (
-                candidates.map((c) => (
-                  <div className="cand-card" key={c._id}>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div className="cand-name">{c.name}</div>
-                      <div className="cand-meta mono">{c.employeeId}</div>
-                      <div
-                        className="cand-check"
-                        style={{ marginTop: 6, gap: 5 }}
-                      >
-                        <DocBadge label="HSE" doc={c.documents?.hsePassport} />
-                        <DocBadge label="CICPA" doc={c.documents?.cicpaPass} />
-                      </div>
-                    </div>
-                    <button
-                      className="btn btn-primary btn-sm"
-                      onClick={() => openAssignAudit(joId, slotId, c)}
-                    >
-                      Assign
-                    </button>
-                  </div>
-                ))
-              )}
-            </div>
-          </>
-        )}
+    <div
+      className="absolute w-64 bg-surface-container-lowest border border-outline-variant shadow-[0_4px_12px_rgba(15,23,42,0.12)] rounded z-50 p-3"
+      style={{ top: "40%", right: 24 }}
+    >
+      <div className="flex justify-between items-center mb-2 pb-2 border-b border-outline-variant">
+        <span className="text-label-sm uppercase tracking-wider text-on-surface">
+          Suggested {slot.trade}s
+        </span>
+        <button
+          className="text-on-surface-variant hover:text-on-surface"
+          onClick={closeDrawer}
+        >
+          <X size={16} />
+        </button>
       </div>
-    </>
+
+      {shown.length === 0 ? (
+        <div className="text-center text-outline text-body-sm py-4">
+          No available {slot.trade.toLowerCase()}s with both HSE Passport and
+          CICPA Pass on record.
+        </div>
+      ) : (
+        <div className="space-y-1">
+          {shown.map((c) => {
+            const hseLvl = docLevel(c.documents?.hsePassport);
+            const cicpaLvl = docLevel(c.documents?.cicpaPass);
+            const worst =
+              hseLvl === "red" || cicpaLvl === "red"
+                ? "red"
+                : hseLvl === "yellow" || cicpaLvl === "yellow"
+                  ? "yellow"
+                  : "green";
+            return (
+              <div
+                key={c._id}
+                className="flex justify-between items-center p-2 hover:bg-surface-container-low rounded cursor-pointer group border border-transparent hover:border-outline-variant"
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  <div className="w-6 h-6 bg-surface-container-high rounded-full flex items-center justify-center text-[10px] font-bold shrink-0">
+                    {c.name
+                      ?.split(" ")
+                      .map((p) => p[0])
+                      .slice(0, 2)
+                      .join("")
+                      .toUpperCase()}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-label-sm text-on-surface truncate">
+                      {c.name}
+                    </div>
+                    <div
+                      className={`font-mono-data text-[9px] ${CERT_TEXT[worst]}`}
+                    >
+                      HSE &amp; CICPA {worst === "green" ? "valid" : "check"}
+                    </div>
+                  </div>
+                </div>
+                <button
+                  className="w-6 h-6 bg-surface border border-outline-variant rounded flex items-center justify-center shrink-0 group-hover:bg-primary-container group-hover:text-on-primary group-hover:border-primary-container transition-colors"
+                  onClick={() => openAssignAudit(joId, slotId, c)}
+                >
+                  +
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {candidates.length > shown.length && (
+        <div className="mt-2 pt-2 border-t border-outline-variant text-center text-label-sm text-on-surface-variant">
+          +{candidates.length - shown.length} more available
+        </div>
+      )}
+    </div>
   );
 }

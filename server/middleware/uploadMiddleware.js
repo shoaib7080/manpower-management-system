@@ -23,4 +23,27 @@ const upload = multer({
   fileFilter: fileFilter
 });
 
+const certFileFilter = (req, file, cb) => {
+  if (
+    file.mimetype.startsWith("image/") ||
+    file.mimetype === "application/pdf" ||
+    file.originalname.match(/\.(jpg|jpeg|png|webp|pdf)$/i)
+  ) {
+    cb(null, true);
+  } else {
+    cb(
+      new Error(
+        "Invalid file type. Only images (PNG, JPG, WEBP) or PDF files are allowed.",
+      ),
+      false,
+    );
+  }
+};
+
+export const certUpload = multer({
+  storage: storage,
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: certFileFilter,
+});
+
 export default upload;

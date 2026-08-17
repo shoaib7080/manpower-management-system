@@ -1,5 +1,17 @@
 import { useEffect, useState } from "react";
 import useDashboardStore from "../../store/useDashboardStore";
+import {
+  Field,
+  ModalBody,
+  ModalFoot,
+  ModalHead,
+  ModalShell,
+  Overlay,
+  WarnBox,
+  btnDangerOutline,
+  btnGhost,
+  inputCls,
+} from "../ui/Modal";
 
 export default function AdminOverrideModal() {
   const { open, pending } = useDashboardStore((s) => s.ui.admin);
@@ -15,41 +27,42 @@ export default function AdminOverrideModal() {
   if (!open || !pending) return null;
 
   return (
-    <div className="overlay show" onClick={(e) => e.target === e.currentTarget && closeAdminModal()}>
-      <div className="modal">
-        <div className="modal-head">
-          <h3>Locked Assignment</h3>
-          <button className="modal-close" onClick={closeAdminModal}>
-            ×
-          </button>
-        </div>
+    <Overlay onBackdropClick={closeAdminModal}>
+      <ModalShell>
+        <ModalHead title="Locked Assignment" onClose={closeAdminModal} />
 
-        <div className="modal-body">
-          <div className="warn-box">
-            <div className="warn-label">Locked assignment</div>
-            <p>
-              <b>{pending.workerName}</b> is <b>{pending.status}</b> and locked against swap or cancellation.
-              Level 1 Admin authorization is required to override this hard lock.
-            </p>
-          </div>
+        <ModalBody>
+          <WarnBox label="Locked assignment">
+            <b className="text-on-error-container">{pending.workerName}</b> is{" "}
+            <b className="text-on-error-container">{pending.status}</b> and
+            locked against swap or cancellation. Level 1 Admin authorization
+            is required to override this hard lock.
+          </WarnBox>
 
-          <div className="field" style={{ marginBottom: 0 }}>
-            <label>
-              Admin Override PIN <span className="req">*</span>
-            </label>
-            <input type="password" value={pin} onChange={(e) => setPin(e.target.value)} placeholder="Enter Level 1 Admin PIN" />
-          </div>
-        </div>
+          <Field label="Admin Override PIN" required>
+            <input
+              type="password"
+              className={inputCls}
+              value={pin}
+              onChange={(e) => setPin(e.target.value)}
+              placeholder="Enter Level 1 Admin PIN"
+            />
+          </Field>
+        </ModalBody>
 
-        <div className="modal-foot">
-          <button className="btn btn-ghost" onClick={closeAdminModal}>
+        <ModalFoot>
+          <button className={btnGhost} onClick={closeAdminModal}>
             Cancel
           </button>
-          <button className="btn btn-danger-outline" disabled={pin.trim().length === 0} onClick={confirmAdminOverride}>
+          <button
+            className={btnDangerOutline}
+            disabled={pin.trim().length === 0}
+            onClick={confirmAdminOverride}
+          >
             Authorize Override
           </button>
-        </div>
-      </div>
-    </div>
+        </ModalFoot>
+      </ModalShell>
+    </Overlay>
   );
 }

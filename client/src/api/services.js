@@ -22,6 +22,10 @@ export const createJobOrder = (payload) => api.post("/job-orders", payload);
 export const updateEmployee = (id, payload) =>
   api.put(`/manpower/${id}`, payload);
 export const deleteEmployee = (id) => api.delete(`/manpower/${id}`);
+export const uploadEmployeeCert = (formData) =>
+  api.post("/manpower/upload-cert", formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
 
 export const uploadJobOrderExcel = (formData) =>
   api.post("/job-orders/import", formData, {
@@ -34,8 +38,15 @@ export const getSpecializations = (trade) =>
   api.get("/specializations", { params: trade ? { trade } : {} });
 export const createSpecialization = (payload) =>
   api.post("/specializations", payload);
+export const updateSpecialization = (id, payload) =>
+  api.put(`/specializations/${id}`, payload);
 export const deactivateSpecialization = (id) =>
   api.patch(`/specializations/${id}/deactivate`);
+
+export const getTrades = (params) => api.get("/trades", { params });
+export const createTrade = (payload) => api.post("/trades", payload);
+export const updateTrade = (id, payload) => api.put(`/trades/${id}`, payload);
+export const deactivateTrade = (id) => api.patch(`/trades/${id}/deactivate`);
 
 export const getUsers = () => api.get("/auth/users");
 export const createUser = (payload) => api.post("/auth/register", payload);

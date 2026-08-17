@@ -5,17 +5,16 @@ import Employee from "../models/Employee.js";
 import JobOrder from "../models/JobOrder.js";
 import parseDate from "../utils/parseDate.js";
 
-// Helper: Calculate default 90-day demobilization date
-const calculate90DayDemob = (startDate) => {
-  const date = new Date(startDate);
-  date.setDate(date.getDate() + 90);
-  return date;
+const calculate90DayDemob = (date) => {
+  const d = new Date(date);
+  d.setDate(d.getDate() + 90);
+  return d;
 };
 
 // @desc    Create a new Job Order with auto-generated empty trade slots
 // @route   POST /api/job-orders
 // @access  Protected (Level 2 Engineer or Level 1 Admin)
-export const createJobOrder = async (req, res) => {
+export const createJobOrder = async (req, res, next) => {
   try {
     const {
       jobOrderNumber,
@@ -33,9 +32,6 @@ export const createJobOrder = async (req, res) => {
         .status(400)
         .json({ message: "Job Order Number already exists." });
     }
-
-    const start = new Date(startDate);
-    const targetDemobDate = calculate90DayDemob(start);
 
     // Auto-generate empty slots based on requirement quantities
     const generatedSlots = [];
@@ -57,8 +53,7 @@ export const createJobOrder = async (req, res) => {
       siteName,
       clientCategory,
       projectEngineer,
-      startDate: start,
-      targetDemobDate,
+      startDate: startDate ? new Date(startDate) : null,
       requirements,
       slots: generatedSlots,
       status: "Active",
@@ -69,16 +64,14 @@ export const createJobOrder = async (req, res) => {
       .status(201)
       .json({ message: "Job Order created successfully", data: jobOrder });
   } catch (error) {
-    res
-      .status(500)
-      .json({ message: "Failed to create Job Order", error: error.message });
+    next(error);
   }
 };
 
 // @desc    Bulk Import Job Orders from Excel
 // @route   POST /api/job-orders/import
 // @access  Protected (Level 2 or higher)
-export const importJobOrdersFromExcel = async (req, res) => {
+export const importJobOrdersFromExcel = async (req, res, next) => {
   try {
     if (!req.file)
       return res.status(400).json({ message: "Please upload an Excel file." });
@@ -144,12 +137,6 @@ export const importJobOrdersFromExcel = async (req, res) => {
         );
         continue;
       }
-      if (!startDate) {
-        skipped.push(
-          `Row ${rowNum} (${jobOrderNumber}): missing or invalid Start Date — value was "${row["Start Date"] || row["Mob Date"] || "not found"}"`,
-        );
-        continue;
-      }
 
       const requirements = [];
       TRADE_COLS.forEach((trade) => {
@@ -178,8 +165,7 @@ export const importJobOrdersFromExcel = async (req, res) => {
           siteName,
           clientCategory,
           projectEngineer: projectEngineer || "TBD",
-          startDate,
-          targetDemobDate: calculate90DayDemob(startDate),
+          startDate: startDate || null,
           requirements,
           slots: requirements.flatMap(({ trade, requiredQty }) =>
             Array.from({ length: requiredQty }, (_, i) => ({
@@ -207,16 +193,14 @@ export const importJobOrdersFromExcel = async (req, res) => {
       errors,
     });
   } catch (error) {
-    res
-      .status(500)
-      .json({ message: "Job order import failed", error: error.message });
+    next(error);
   }
 };
 
 // @desc    Get all Job Orders with populated employee details in slots
 // @route   GET /api/job-orders
 // @access  Protected
-export const getJobOrders = async (req, res) => {
+export const getJobOrders = async (req, res, next) => {
   try {
     const { status, siteName } = req.query;
     let query = {};
@@ -233,16 +217,14 @@ export const getJobOrders = async (req, res) => {
 
     res.status(200).json(jobOrders);
   } catch (error) {
-    res
-      .status(500)
-      .json({ message: "Error fetching Job Orders", error: error.message });
+    next(error);
   }
 };
 
 // @desc    Auto-Suggestion Engine for Empty Trade Slots
 // @route   GET /api/job-orders/suggest
 // @access  Protected
-export const getSlotSuggestions = async (req, res) => {
+export const getSlotSuggestions = async (req, res, next) => {
   try {
     const { trade, clientCategory } = req.query;
 
@@ -254,25 +236,13 @@ export const getSlotSuggestions = async (req, res) => {
 
     const now = new Date();
 
-    // Base query: correct trade, available status, and at least one document field
-    // present on BOTH hsePassport and cicpaPass (number OR expiry is enough)
+    // Base query: correct trade, available status, and document availability
+    // present on BOTH hsePassport and cicpaPass
     const query = {
       trade,
       status: EMPLOYEE_STATUS.AVAILABLE,
-      $and: [
-        {
-          $or: [
-            { "documents.hsePassport.number": { $nin: [null, ""] } },
-            { "documents.hsePassport.expiry": { $ne: null } },
-          ],
-        },
-        {
-          $or: [
-            { "documents.cicpaPass.number": { $nin: [null, ""] } },
-            { "documents.cicpaPass.expiry": { $ne: null } },
-          ],
-        },
-      ],
+      "documents.hsePassport.available": true,
+      "documents.cicpaPass.available": true,
     };
 
     // Additional training checks per client category (still enforced on top of documents)
@@ -296,17 +266,14 @@ export const getSlotSuggestions = async (req, res) => {
       suggestions: availableCandidates,
     });
   } catch (error) {
-    res.status(500).json({
-      message: "Error running suggestion engine",
-      error: error.message,
-    });
+    next(error);
   }
 };
 
 // @desc    Advance worker through pipeline (RESERVED -> BOOKED -> MOBILIZED)
 // @route   PUT /api/job-orders/:id/update-slot-pipeline
 // @access  Protected
-export const updateSlotPipeline = async (req, res) => {
+export const updateSlotPipeline = async (req, res, next) => {
   try {
     const { id: jobOrderId } = req.params;
     const { slotId, targetStatus, reasonForChange, authorizedBy } = req.body;
@@ -383,16 +350,14 @@ export const updateSlotPipeline = async (req, res) => {
       employee,
     });
   } catch (error) {
-    res
-      .status(500)
-      .json({ message: "Pipeline transition failed", error: error.message });
+    next(error);
   }
 };
 
 // @desc    Assign Employee to Slot with ENFORCED Audit Verification
 // @route   PUT /api/job-orders/:id/assign-slot
 // @access  Protected (Level 2 or Level 1)
-export const assignEmployeeToSlot = async (req, res) => {
+export const assignEmployeeToSlot = async (req, res, next) => {
   try {
     const { id: jobOrderId } = req.params;
     const {
@@ -428,20 +393,13 @@ export const assignEmployeeToSlot = async (req, res) => {
     }
 
     // Mobilization readiness gate: both HSE Passport and CICPA Pass must have
-    // a number OR a future/present expiry date
-    const now2 = new Date();
-    const hasHse =
-      employee.documents?.hsePassport?.number?.trim() ||
-      (employee.documents?.hsePassport?.expiry &&
-        new Date(employee.documents.hsePassport.expiry) >= now2);
-    const hasCicpa =
-      employee.documents?.cicpaPass?.number?.trim() ||
-      (employee.documents?.cicpaPass?.expiry &&
-        new Date(employee.documents.cicpaPass.expiry) >= now2);
+    // document availability marked true
+    const hasHse = Boolean(employee.documents?.hsePassport?.available);
+    const hasCicpa = Boolean(employee.documents?.cicpaPass?.available);
 
     if (!hasHse || !hasCicpa) {
       return res.status(400).json({
-        message: `${employee.name} cannot be assigned — missing valid ${!hasHse ? "HSE Passport" : "CICPA Pass"}. Upload the document number or a valid expiry date first.`,
+        message: `${employee.name} cannot be assigned — missing valid ${!hasHse ? "HSE Passport" : "CICPA Pass"}. Mark document availability in the profile first.`,
       });
     }
 
@@ -501,16 +459,14 @@ export const assignEmployeeToSlot = async (req, res) => {
       auditLog: auditEntry,
     });
   } catch (error) {
-    res
-      .status(500)
-      .json({ message: "Slot assignment failed", error: error.message });
+    next(error);
   }
 };
 
 // @desc    Release / Demobilize Employee from Slot
 // @route   PUT /api/job-orders/:id/release-slot
 // @access  Protected
-export const releaseEmployeeFromSlot = async (req, res) => {
+export const releaseEmployeeFromSlot = async (req, res, next) => {
   try {
     const { id: jobOrderId } = req.params;
     const { slotId, reasonForChange, authorizedBy, newStatus } = req.body;
@@ -574,8 +530,6 @@ export const releaseEmployeeFromSlot = async (req, res) => {
       .status(200)
       .json({ message: "Employee demobilized and slot cleared successfully." });
   } catch (error) {
-    res
-      .status(500)
-      .json({ message: "Demobilization failed", error: error.message });
+    next(error);
   }
 };

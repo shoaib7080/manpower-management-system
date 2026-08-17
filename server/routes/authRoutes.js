@@ -5,6 +5,7 @@ import {
   getUsers,
   loginUser,
   registerUser,
+  updateUser,
 } from "../controllers/authController.js";
 import { protect, requireLevel } from "../middleware/authMiddleware.js";
 
@@ -30,11 +31,6 @@ router.delete(
   deleteUser,
 );
 
-router.delete(
-  "/users/:id",
-  protect,
-  requireLevel(ROLE_LEVELS.ADMIN),
-  deleteUser,
-);
+router.put("/users/:id", protect, requireLevel(ROLE_LEVELS.ADMIN), updateUser);
 
 export default router;
