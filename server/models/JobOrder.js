@@ -8,6 +8,12 @@ const slotSchema = new mongoose.Schema({
     ref: "Employee",
     default: null,
   },
+  externalWorker: {
+    name: { type: String, trim: true, default: null },
+    company: { type: String, trim: true, default: null },
+    contactNumber: { type: String, trim: true, default: null },
+    isExternal: { type: Boolean, default: false },
+  },
   status: {
     type: String,
     enum: ["UNASSIGNED", "RESERVED", "BOOKED", "MOBILIZED"],

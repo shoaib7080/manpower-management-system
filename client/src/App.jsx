@@ -9,8 +9,10 @@ import AuditLogPage from "./pages/AuditLogPage";
 import DirectoryPage from "./pages/DirectoryPage";
 import ErrorPage, { PageErrorElement } from "./pages/ErrorPage";
 import JobOrdersPage from "./pages/JobOrdersPage";
+import EditJobOrderPage from "./pages/EditJobOrderPage";
 import LoginPage from "./pages/LoginPage";
 import SpecializationsPage from "./pages/SpecializationsPage";
+import StaffPage from "./pages/StaffPage";
 import TradesPage from "./pages/TradesPage";
 import UsersPage from "./pages/UserPage";
 import DashboardPage from "./pages/DashboardPage";
@@ -37,6 +39,11 @@ const router = createBrowserRouter([
         errorElement: <PageErrorElement />,
       },
       {
+        path: "job-orders/:id/edit",
+        element: <EditJobOrderPage />,
+        errorElement: <PageErrorElement />,
+      },
+      {
         path: "audit-log",
         element: <AuditLogPage />,
         errorElement: <PageErrorElement />,
@@ -54,6 +61,11 @@ const router = createBrowserRouter([
       {
         path: "specializations",
         element: <SpecializationsPage />,
+        errorElement: <PageErrorElement />,
+      },
+      {
+        path: "staff",
+        element: <StaffPage />,
         errorElement: <PageErrorElement />,
       },
     ],

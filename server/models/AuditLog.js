@@ -1,7 +1,12 @@
 import mongoose from 'mongoose';
 
 const auditLogSchema = new mongoose.Schema({
-  employeeId: { type: mongoose.Schema.Types.ObjectId, ref: 'Employee', required: true },
+  employeeId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Employee",
+    required: false,
+    default: null,
+  },
   employeeName: { type: String, required: true },
   previousStatus: { type: String },
   newStatus: { type: String, required: true },

@@ -77,6 +77,7 @@ request interceptor.
 | `/api/job-orders` | job order CRUD, Excel import, slot assign/release/pipeline, auto-suggest |
 | `/api/audit-logs` | read audit history |
 | `/api/specializations` | list, create, deactivate specializations |
+| `/api/staff` | list, create, update, deactivate authorized staff |
 
 ---
 
@@ -140,13 +141,17 @@ server/
 │   ├── Employee.js
 │   ├── JobOrder.js             # includes embedded slot sub-schema
 │   ├── Specialization.js
+│   ├── Staff.js                # authorized personnel for audit "Authorized By"
+│   ├── Trade.js
 │   └── User.js
 ├── routes/
 │   ├── auditRoutes.js
 │   ├── authRoutes.js
 │   ├── jobOrderRoutes.js
 │   ├── manpowerRoutes.js
-│   └── specializationRoutes.js
+│   ├── specializationRoutes.js
+│   ├── staffRoutes.js
+│   └── tradeRoutes.js
 ├── scripts/
 │   └── fixEmployeeTrades.js    # one-time data cleanup, not part of the app
 ├── utils/

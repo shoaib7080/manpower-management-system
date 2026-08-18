@@ -8,7 +8,14 @@ const employeeSchema = new mongoose.Schema(
     trade: { type: String, required: true, trim: true, index: true },
     specialization: { type: String, trim: true, default: null },
     dob: { type: Date },
-    emiratesId: { type: String, unique: true, sparse: true },
+    emiratesId: {
+      type: String,
+      unique: true,
+      sparse: true,
+      // Coerce empty strings to null so the sparse unique index
+      // doesn't treat multiple blank emiratesIds as duplicates.
+      set: (v) => (v && v.trim() ? v.trim() : null),
+    },
     passportNumber: { type: String },
 
     // HSE & Safety Certifications

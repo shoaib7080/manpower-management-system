@@ -320,6 +320,11 @@ export default function DirectoryPage() {
                       </td>
                       <td className="px-3.5 py-2.5 border-b border-outline-variant">
                         <StatusBadge status={e.status} />
+                        {e.currentAssignment?.siteName && (
+                          <div className="text-[11px] text-on-surface-variant mt-0.5 truncate max-w-[140px]">
+                            {e.currentAssignment.siteName}
+                          </div>
+                        )}
                       </td>
                       <td className="px-3.5 py-2.5 border-b border-outline-variant">
                         <DocCell doc={e.documents?.hsePassport} />

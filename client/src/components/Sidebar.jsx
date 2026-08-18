@@ -6,6 +6,7 @@ import {
   LogOut,
   ShieldCheck,
   Tags,
+  UserCheck,
   Users,
 } from "lucide-react";
 import { NavLink } from "react-router-dom";
@@ -27,6 +28,7 @@ const NAV = [
 
 const ADMIN_NAV = [
   { to: "/users", label: "User Management", Icon: ShieldCheck },
+  { to: "/staff", label: "Staff", Icon: UserCheck },
   { to: "/trades", label: "Trades", Icon: Briefcase },
   { to: "/specializations", label: "Specializations", Icon: Tags },
 ];

@@ -18,6 +18,8 @@ export const updateSlotPipeline = (jobOrderId, payload) =>
 
 export const createEmployee = (payload) => api.post("/manpower", payload);
 export const createJobOrder = (payload) => api.post("/job-orders", payload);
+export const updateJobOrder = (id, payload) => api.put(`/job-orders/${id}`, payload);
+
 
 export const updateEmployee = (id, payload) =>
   api.put(`/manpower/${id}`, payload);
@@ -53,3 +55,8 @@ export const createUser = (payload) => api.post("/auth/register", payload);
 export const deleteUser = (id) => api.delete(`/auth/users/${id}`);
 export const updateUser = (id, payload) =>
   api.put(`/auth/users/${id}`, payload);
+
+export const getStaff = () => api.get("/staff");
+export const createStaff = (payload) => api.post("/staff", payload);
+export const updateStaff = (id, payload) => api.put(`/staff/${id}`, payload);
+export const deactivateStaff = (id) => api.patch(`/staff/${id}/deactivate`);

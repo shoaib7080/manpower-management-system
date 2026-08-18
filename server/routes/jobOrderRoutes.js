@@ -7,6 +7,7 @@ import {
   getSlotSuggestions,
   importJobOrdersFromExcel,
   releaseEmployeeFromSlot,
+  updateJobOrder,
   updateSlotPipeline,
 } from "../controllers/jobOrderController.js";
 import { protect, requireLevel } from "../middleware/authMiddleware.js";
@@ -24,6 +25,9 @@ router.get("/suggest", getSlotSuggestions);
 
 // POST /api/job-orders - Create new Job Order (Level 2 Engineer or Level 1 Admin)
 router.post("/", requireLevel(ROLE_LEVELS.PROJECT_ENGINEER), createJobOrder);
+
+// PUT /api/job-orders/:id - Update job order metadata and trade requirements
+router.put("/:id", requireLevel(ROLE_LEVELS.PROJECT_ENGINEER), updateJobOrder);
 
 // POST /api/job-orders/import - Bulk Job Order Upload (Level 2 Engineer or Level 1 Admin)
 router.post(

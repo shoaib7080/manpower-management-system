@@ -8,6 +8,7 @@ import authRoutes from "./routes/authRoutes.js";
 import jobOrderRoutes from "./routes/jobOrderRoutes.js";
 import manpowerRoutes from "./routes/manpowerRoutes.js";
 import specializationRoutes from "./routes/specializationRoutes.js";
+import staffRoutes from "./routes/staffRoutes.js";
 import tradeRoutes from "./routes/tradeRoutes.js";
 import { seedInitialTrades } from "./utils/seedTrades.js";
 import { migrateEmployeeDocuments } from "./utils/migrateEmployeeDocuments.js";
@@ -41,6 +42,7 @@ app.use("/api/manpower", manpowerRoutes);
 app.use("/api/job-orders", jobOrderRoutes);
 app.use("/api/audit-logs", auditRoutes);
 app.use("/api/specializations", specializationRoutes);
+app.use("/api/staff", staffRoutes);
 app.use("/api/trades", tradeRoutes);
 
 // Base Route

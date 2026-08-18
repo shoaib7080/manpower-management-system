@@ -270,13 +270,97 @@ export const getSlotSuggestions = async (req, res, next) => {
   }
 };
 
-// @desc    Advance worker through pipeline (RESERVED -> BOOKED -> MOBILIZED)
+// @desc    Update job order metadata and trade requirements
+// @route   PUT /api/job-orders/:id
+// @access  Protected (Level 2 Engineer or Level 1 Admin)
+export const updateJobOrder = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const {
+      siteName,
+      clientCategory,
+      projectEngineer,
+      startDate,
+      status,
+      requirements,
+    } = req.body;
+
+    const jobOrder = await JobOrder.findById(id);
+    if (!jobOrder)
+      return res.status(404).json({ message: "Job order not found." });
+
+    // Update simple fields
+    if (siteName !== undefined) jobOrder.siteName = siteName.trim();
+    if (clientCategory !== undefined) jobOrder.clientCategory = clientCategory;
+    if (projectEngineer !== undefined) jobOrder.projectEngineer = projectEngineer.trim();
+    if (startDate !== undefined) jobOrder.startDate = startDate ? new Date(startDate) : null;
+    if (status !== undefined) jobOrder.status = status;
+
+    // Reconcile trade requirements & slots if requirements changed
+    if (requirements && Array.isArray(requirements)) {
+      // For each new requirement, diff against existing slots
+      for (const req of requirements) {
+        const { trade, requiredQty } = req;
+        const existingSlots = jobOrder.slots.filter((s) => s.trade === trade);
+        const diff = requiredQty - existingSlots.length;
+
+        if (diff > 0) {
+          // Add new empty slots
+          const maxSlotNum = existingSlots.length
+            ? Math.max(...existingSlots.map((s) => s.slotNumber))
+            : 0;
+          for (let i = 1; i <= diff; i++) {
+            jobOrder.slots.push({
+              slotNumber: maxSlotNum + i,
+              trade,
+              assignedEmployee: null,
+              status: "UNASSIGNED",
+              mobDate: null,
+              demobDate: null,
+            });
+          }
+        } else if (diff < 0) {
+          // Remove excess UNASSIGNED slots (never remove assigned slots)
+          let toRemove = Math.abs(diff);
+          const unassigned = jobOrder.slots
+            .filter((s) => s.trade === trade && s.status === "UNASSIGNED")
+            .slice(-toRemove)
+            .map((s) => s._id.toString());
+          jobOrder.slots = jobOrder.slots.filter(
+            (s) => !unassigned.includes(s._id.toString()),
+          );
+        }
+      }
+
+      // Remove slots for trades completely removed from requirements
+      const newTrades = requirements.map((r) => r.trade);
+      const removedTrades = jobOrder.requirements
+        .map((r) => r.trade)
+        .filter((t) => !newTrades.includes(t));
+      for (const trade of removedTrades) {
+        jobOrder.slots = jobOrder.slots.filter(
+          (s) => s.trade !== trade || s.status !== "UNASSIGNED",
+        );
+      }
+
+      jobOrder.requirements = requirements;
+    }
+
+    await jobOrder.save();
+    const populated = await jobOrder.populate("slots.assignedEmployee", "name employeeId trade status");
+    res.status(200).json({ message: "Job order updated.", data: populated });
+  } catch (error) {
+    next(error);
+  }
+};
+
+
 // @route   PUT /api/job-orders/:id/update-slot-pipeline
 // @access  Protected
 export const updateSlotPipeline = async (req, res, next) => {
   try {
     const { id: jobOrderId } = req.params;
-    const { slotId, targetStatus, reasonForChange, authorizedBy } = req.body;
+    const { slotId, targetStatus, mobDate, reasonForChange, authorizedBy } = req.body;
 
     // Enforce mandatory audit inputs
     if (!reasonForChange || !authorizedBy) {
@@ -291,12 +375,54 @@ export const updateSlotPipeline = async (req, res, next) => {
       return res.status(404).json({ message: "Job Order not found." });
 
     const slot = jobOrder.slots.id(slotId);
-    if (!slot || !slot.assignedEmployee) {
+    if (
+      !slot ||
+      (slot.status === "UNASSIGNED" &&
+        !slot.assignedEmployee &&
+        !slot.externalWorker?.name)
+    ) {
       return res
         .status(400)
         .json({ message: "Target slot is empty or invalid." });
     }
 
+    // External Subcontractor Worker Pipeline Advance
+    if (slot.externalWorker?.isExternal) {
+      const prevStatus = slot.status;
+      slot.status = targetStatus;
+
+      if (targetStatus === EMPLOYEE_STATUS.MOBILIZED) {
+        const resolvedMobDate = mobDate ? new Date(mobDate) : new Date();
+        const demobDate = new Date(resolvedMobDate);
+        demobDate.setDate(resolvedMobDate.getDate() + 90);
+        slot.mobDate = resolvedMobDate;
+        slot.demobDate = demobDate;
+      }
+
+      const extWorkerLabel = `${slot.externalWorker.name}${slot.externalWorker.company ? ` (${slot.externalWorker.company})` : " (Subcontractor)"}`;
+
+      const auditEntry = new AuditLog({
+        employeeId: null,
+        employeeName: extWorkerLabel,
+        previousStatus: prevStatus,
+        newStatus: targetStatus,
+        previousSite: jobOrder.siteName,
+        newSite: jobOrder.siteName,
+        reasonForChange,
+        authorizedBy,
+        updatedByUserId: req.user._id,
+      });
+
+      await Promise.all([jobOrder.save(), auditEntry.save()]);
+
+      return res.status(200).json({
+        message: `External worker ${extWorkerLabel} updated to ${targetStatus}.`,
+        slot,
+        auditLog: auditEntry,
+      });
+    }
+
+    // Internal Company Employee Pipeline Advance
     const employee = await Employee.findById(slot.assignedEmployee);
     if (!employee)
       return res.status(404).json({ message: "Assigned employee not found." });
@@ -319,13 +445,13 @@ export const updateSlotPipeline = async (req, res, next) => {
     employee.status = targetStatus;
 
     if (targetStatus === EMPLOYEE_STATUS.MOBILIZED) {
-      const mobDate = new Date();
-      const demobDate = new Date();
-      demobDate.setDate(mobDate.getDate() + 90);
+      const resolvedMobDate = mobDate ? new Date(mobDate) : new Date();
+      const demobDate = new Date(resolvedMobDate);
+      demobDate.setDate(resolvedMobDate.getDate() + 90);
 
-      slot.mobDate = mobDate;
+      slot.mobDate = resolvedMobDate;
       slot.demobDate = demobDate;
-      employee.currentAssignment.mobDate = mobDate;
+      employee.currentAssignment.mobDate = resolvedMobDate;
       employee.currentAssignment.targetDemobDate = demobDate;
     }
 
@@ -363,11 +489,16 @@ export const assignEmployeeToSlot = async (req, res, next) => {
     const {
       slotId,
       employeeId,
+      isExternal,
+      externalWorker,
       mobDate,
       targetDemobDate,
+      targetStatus,
       reasonForChange,
       authorizedBy,
     } = req.body;
+
+    const resolvedStatus = targetStatus || "RESERVED";
 
     // 1. STRICTION CHECK: Validate mandatory audit constraints
     if (!reasonForChange || !authorizedBy) {
@@ -387,6 +518,59 @@ export const assignEmployeeToSlot = async (req, res, next) => {
       return res.status(404).json({ message: "Target trade slot not found." });
     }
 
+    const actualMobDate = mobDate ? new Date(mobDate) : new Date();
+    const actualDemobDate = targetDemobDate
+      ? new Date(targetDemobDate)
+      : calculate90DayDemob(actualMobDate);
+
+    // Handle External / Subcontractor Worker Assignment
+    if (isExternal) {
+      if (!externalWorker?.name?.trim()) {
+        return res
+          .status(400)
+          .json({ message: "External worker name is required." });
+      }
+
+      slot.assignedEmployee = null;
+      slot.externalWorker = {
+        name: externalWorker.name.trim(),
+        company: externalWorker.company?.trim() || null,
+        contactNumber: externalWorker.contactNumber?.trim() || null,
+        isExternal: true,
+      };
+      slot.status = resolvedStatus;
+      slot.mobDate = actualMobDate;
+      slot.demobDate = actualDemobDate;
+
+      if (resolvedStatus === "MOBILIZED") {
+        slot.mobDate = actualMobDate;
+        slot.demobDate = actualDemobDate;
+      }
+
+      const extWorkerLabel = `${externalWorker.name.trim()}${externalWorker.company ? ` (${externalWorker.company.trim()})` : " (Subcontractor)"}`;
+
+      const auditEntry = new AuditLog({
+        employeeId: null,
+        employeeName: extWorkerLabel,
+        previousStatus: "UNASSIGNED",
+        newStatus: resolvedStatus,
+        previousSite: "Subcontractor / External",
+        newSite: jobOrder.siteName,
+        reasonForChange: reasonForChange,
+        authorizedBy: authorizedBy,
+        updatedByUserId: req.user._id,
+      });
+
+      await Promise.all([jobOrder.save(), auditEntry.save()]);
+
+      return res.status(200).json({
+        message: `External worker ${extWorkerLabel} assigned to ${jobOrder.siteName} successfully.`,
+        slot,
+        auditLog: auditEntry,
+      });
+    }
+
+    // Handle Internal Company Employee Assignment
     const employee = await Employee.findById(employeeId);
     if (!employee) {
       return res.status(404).json({ message: "Employee not found." });
@@ -418,19 +602,20 @@ export const assignEmployeeToSlot = async (req, res, next) => {
     const previousSite =
       employee.currentAssignment?.siteName || "Bench / Available";
 
-    const actualMobDate = mobDate ? new Date(mobDate) : new Date();
-    const actualDemobDate = targetDemobDate
-      ? new Date(targetDemobDate)
-      : calculate90DayDemob(actualMobDate);
-
     // 3. Update Slot Status
     slot.assignedEmployee = employee._id;
-    slot.status = "RESERVED";
+    slot.externalWorker = {
+      name: null,
+      company: null,
+      contactNumber: null,
+      isExternal: false,
+    };
+    slot.status = resolvedStatus;
     slot.mobDate = actualMobDate;
     slot.demobDate = actualDemobDate;
 
     // 4. Update Employee Status & Active Site Assignment
-    employee.status = EMPLOYEE_STATUS.RESERVED;
+    employee.status = resolvedStatus;
     employee.currentAssignment = {
       jobOrderId: jobOrder._id,
       siteName: jobOrder.siteName,
@@ -438,12 +623,19 @@ export const assignEmployeeToSlot = async (req, res, next) => {
       targetDemobDate: actualDemobDate,
     };
 
+    if (resolvedStatus === EMPLOYEE_STATUS.MOBILIZED) {
+      slot.mobDate = actualMobDate;
+      slot.demobDate = actualDemobDate;
+      employee.currentAssignment.mobDate = actualMobDate;
+      employee.currentAssignment.targetDemobDate = actualDemobDate;
+    }
+
     // 5. Commit Mandatory Audit Log
     const auditEntry = new AuditLog({
       employeeId: employee._id,
       employeeName: employee.name,
       previousStatus: previousStatus,
-      newStatus: EMPLOYEE_STATUS.RESERVED,
+      newStatus: resolvedStatus,
       previousSite: previousSite,
       newSite: jobOrder.siteName,
       reasonForChange: reasonForChange,
@@ -483,10 +675,51 @@ export const releaseEmployeeFromSlot = async (req, res, next) => {
       return res.status(404).json({ message: "Job Order not found." });
 
     const slot = jobOrder.slots.id(slotId);
-    if (!slot || !slot.assignedEmployee) {
+    if (
+      !slot ||
+      (slot.status === "UNASSIGNED" &&
+        !slot.assignedEmployee &&
+        !slot.externalWorker?.name)
+    ) {
       return res.status(400).json({ message: "Slot is empty or invalid." });
     }
 
+    // Handle External Subcontractor Release
+    if (slot.externalWorker?.isExternal) {
+      const extWorkerLabel = `${slot.externalWorker.name}${slot.externalWorker.company ? ` (${slot.externalWorker.company})` : " (Subcontractor)"}`;
+      const prevStatus = slot.status;
+
+      slot.assignedEmployee = null;
+      slot.externalWorker = {
+        name: null,
+        company: null,
+        contactNumber: null,
+        isExternal: false,
+      };
+      slot.status = "UNASSIGNED";
+      slot.mobDate = null;
+      slot.demobDate = null;
+
+      const auditEntry = new AuditLog({
+        employeeId: null,
+        employeeName: extWorkerLabel,
+        previousStatus: prevStatus,
+        newStatus: "UNASSIGNED",
+        previousSite: jobOrder.siteName,
+        newSite: "Bench / Released",
+        reasonForChange: reasonForChange,
+        authorizedBy: authorizedBy,
+        updatedByUserId: req.user._id,
+      });
+
+      await Promise.all([jobOrder.save(), auditEntry.save()]);
+
+      return res.status(200).json({
+        message: "External worker released and slot cleared successfully.",
+      });
+    }
+
+    // Handle Internal Company Employee Release
     const employee = await Employee.findById(slot.assignedEmployee);
     const previousSite = jobOrder.siteName;
     const previousStatus = employee
@@ -495,6 +728,12 @@ export const releaseEmployeeFromSlot = async (req, res, next) => {
 
     // Clear Slot
     slot.assignedEmployee = null;
+    slot.externalWorker = {
+      name: null,
+      company: null,
+      contactNumber: null,
+      isExternal: false,
+    };
     slot.status = "UNASSIGNED";
     slot.mobDate = null;
     slot.demobDate = null;

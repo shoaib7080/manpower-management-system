@@ -92,9 +92,15 @@ export const getEmployees = async (req, res, next) => {
       // Missing recorded training dates
       query.$or = [
         { "trainings.h2sExpiry": null },
-        { "trainings.tbosietExpiry": null, "trainings.seaSurvivalExpiry": null },
+        {
+          "trainings.tbosietExpiry": null,
+          "trainings.seaSurvivalExpiry": null,
+        },
         { "trainings.medicalExpiry": null },
-        { "trainings.hseInductionExpiry": null, "trainings.adnocInductionExpiry": null },
+        {
+          "trainings.hseInductionExpiry": null,
+          "trainings.adnocInductionExpiry": null,
+        },
       ];
     } else if (compliance === "READY") {
       // All clearances valid beyond 30 days
@@ -165,6 +171,9 @@ export const createEmployee = async (req, res, next) => {
 
     const newEmployee = new Employee({
       ...req.body,
+      // Normalize empty emiratesId to null so the sparse unique index
+      // doesn't treat multiple blank strings as duplicates.
+      emiratesId: req.body.emiratesId?.trim() || null,
       specialization: resolvedSpec,
     });
     await newEmployee.save();
@@ -264,21 +273,20 @@ export const importEmployeesFromExcel = async (req, res, next) => {
       const hseNumber =
         row["HSE Passport Number"] || row["HSE Passport No"] || null;
       const hseExpiry = parseDate(row["HSE Passport Expiry"]);
-      const hseAvailable = isHseAvailableInput != null
-        ? /^(yes|y|true|1)$/i.test(String(isHseAvailableInput).trim())
-        : Boolean(hseNumber || hseExpiry);
+      const hseAvailable =
+        isHseAvailableInput != null
+          ? /^(yes|y|true|1)$/i.test(String(isHseAvailableInput).trim())
+          : Boolean(hseNumber || hseExpiry);
 
       const cicpaNumber =
-        row["CICPA Number"] ||
-        row["CICPA Pass No"] ||
-        row["CICPA No"] ||
-        null;
+        row["CICPA Number"] || row["CICPA Pass No"] || row["CICPA No"] || null;
       const cicpaExpiry = parseDate(
         row["CICPA Expiry"] || row["CICPA Pass Expiry"],
       );
-      const cicpaAvailable = isCicpaAvailableInput != null
-        ? /^(yes|y|true|1)$/i.test(String(isCicpaAvailableInput).trim())
-        : Boolean(cicpaNumber || cicpaExpiry);
+      const cicpaAvailable =
+        isCicpaAvailableInput != null
+          ? /^(yes|y|true|1)$/i.test(String(isCicpaAvailableInput).trim())
+          : Boolean(cicpaNumber || cicpaExpiry);
 
       const hseInduction = parseDate(
         row["HSE Induction Expiry"] ||
@@ -286,9 +294,7 @@ export const importEmployeesFromExcel = async (req, res, next) => {
           row["HSE Induction"],
       );
       const tbosiet = parseDate(
-        row["TBOSIET Expiry"] ||
-          row["TBOSIET"] ||
-          row["Sea Survival Expiry"],
+        row["TBOSIET Expiry"] || row["TBOSIET"] || row["Sea Survival Expiry"],
       );
 
       const employeeDoc = {
@@ -297,8 +303,10 @@ export const importEmployeesFromExcel = async (req, res, next) => {
         trade: canonicalTrade,
         specialization: resolvedSpec,
         dob: parseDate(row["DOB"] || row["Date of Birth"]),
+        // Normalize to undefined (omit) if blank — sparse unique index
+        // ignores missing fields but treats empty strings as duplicates.
         emiratesId: row["Emirates ID"]
-          ? String(row["Emirates ID"]).trim()
+          ? String(row["Emirates ID"]).trim() || undefined
           : undefined,
         passportNumber: row["Passport Number"]
           ? String(row["Passport Number"]).trim()
@@ -388,6 +396,13 @@ export const updateEmployee = async (req, res, next) => {
 
     const payload = { ...updateData };
     if (trade) payload.trade = trade;
+    // Normalize empty emiratesId to null so the sparse unique index
+    // doesn't treat multiple blank strings as duplicates.
+    if ("emiratesId" in payload) {
+      const trimmed = payload.emiratesId?.trim();
+      if (trimmed) payload.emiratesId = trimmed;
+      else delete payload.emiratesId;
+    }
     // Always write specialization (null clears it)
     payload.specialization = resolvedSpec;
 
