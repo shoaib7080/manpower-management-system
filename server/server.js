@@ -22,6 +22,8 @@ import { seedInitialTrades } from "./shared/utils/seedTrades.js";
 import { migrateEmployeeDocuments } from "./shared/utils/migrateEmployeeDocuments.js";
 import { migrateUserPermissions } from "./shared/utils/migrateUserPermissions.js";
 
+import timesheetRoutes from "./modules/finance/routes/timesheetRoutes.js";
+
 dotenv.config();
 
 const app = express();
@@ -57,6 +59,7 @@ app.use("/api/job-orders", jobOrderRoutes);
 app.use("/api/specializations", specializationRoutes);
 app.use("/api/staff", staffRoutes);
 app.use("/api/trades", tradeRoutes);
+app.use("/api/finance/timesheets", timesheetRoutes);
 
 // Base Route
 app.get("/", (req, res) => {

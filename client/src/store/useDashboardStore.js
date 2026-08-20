@@ -79,12 +79,13 @@ const useDashboardStore = create((set, get) => ({
   },
 
   // Swap/release — locked statuses go through AdminOverrideModal first
-  requestSwap: (joId, slotIdx, emp, currentStatus) => {
+  requestSwap: (joId, slotIdx, emp, currentStatus, mobDate) => {
     const pendingAudit = {
       workerName: emp.name,
       workerTrade: emp.trade,
       from: currentStatus,
       to: 'AVAILABLE',
+      mobDate: mobDate,
       action: { type: 'release', joId, slotIdx },
     };
     const locked = currentStatus === 'BOOKED' || currentStatus === 'MOBILIZED';

@@ -1,6 +1,6 @@
 # Phases
 
-Four phases, roughly sequential. Status reflects the actual current state of
+Five phases, roughly sequential. Status reflects the actual current state of
 the repo, verified against the code — not a guess.
 
 ---
@@ -10,7 +10,7 @@ the repo, verified against the code — not a guess.
 
 - [x] Vite/React client + Express/MongoDB server scaffold
 - [x] JWT auth (login, protected routes)
-- [x] 4-level role hierarchy (`ROLE_LEVELS`) with `requireLevel` middleware
+- [x] Role hierarchy with permission middleware
 - [x] Core models: `User`, `Employee`, `JobOrder` (with embedded slots)
 - [x] Employee Directory page: list, search, filter, compliance indicators
 - [x] Job Orders page: create, view, slot grid
@@ -31,63 +31,66 @@ the repo, verified against the code — not a guess.
 - [x] Audit Log viewer page, wired into navigation
 - [x] Fixed: Auto-Suggest query-key mismatch that made it return no candidates
 - [x] Fixed: duplicate `AuditModal` mount causing ambiguous double-confirm
-- [x] Fixed: dead component files removed (`ManpowerTable`, old `JobOrderCard`,
-      `SuggestionPanel`, `Navbar`, duplicate `AuditModal`)
+- [x] Fixed: dead component files removed
 - [x] `CreateEmployeeModal` wired up (was previously dead/unreachable)
 
-**Status: complete.** This was the highest-risk phase (matches the
-original problem statement most directly) and it's now functioning
-end-to-end.
+**Status: complete.**
 
 ---
 
-## Phase 3 — Data Integrity & Hardening
-*Close the gaps that let bad data or bad access into a system that's supposed to prevent exactly that.*
+## Phase 3 — Data Integrity & Architecture
+*Close the gaps that let bad data or bad access in, and restructure for scale.*
 
-- [x] `Specialization` model + admin CRUD + trade-scoped dropdown assignment
-- [x] Import validation: employee trade values checked against `TRADES` +
-      `Specialization` before write, unmatched rows reported instead of
-      silently written
-- [x] Bulk import switched from unvalidated `bulkWrite` to validated
-      `findOneAndUpdate`
-- [x] One-time cleanup script for pre-existing invalid trade data
-      (`fixEmployeeTrades.js`)
-- [ ] **`updateEmployee` bug**: computes the correct update payload
-      (including trade/specialization) but writes a different, stale object
-      — trade/specialization edits currently don't persist. *Highest
-      priority open item — small fix, blocks a real feature.*
-- [ ] **Specialization single-trade limitation**: `trade: String` needs to
-      become `trades: [String]` so one specialization (e.g. "E&I") can span
-      multiple trades. Schema + controller changes identified, not yet
-      applied. Requires a small migration for any existing records.
-- [ ] Request-body validation on `level` at user creation (reject anything
-      outside the known `ROLE_LEVELS` values)
-- [ ] Audit-log entry on user/account creation, especially new Admins
-- [ ] `User.level` schema default changed from Admin to lowest privilege
-- [ ] `seedAdmin.js` credentials rotated / sourced from env for any real
-      deployment
-- [ ] Finalize the canonical `TRADES` list for EPC O&G scope (draft already
-      produced — Scaffolder, Painter/Blaster, Electrician, Instrument
-      Technician, and civil trades are the notable gaps)
+- [x] `Specialization.trades[]` — array, supports multi-trade specializations
+- [x] `Specialization` pre-save hook bug fixed
+- [x] `Trade` model — DB-managed, admin-editable via `TradesPage`, seeded on boot
+- [x] `Staff` model — admin-managed "Authorized By" lookup with designation
+- [x] Import validation against active `Trade` collection
+- [x] `updateEmployee` emiratesId sparse-index bug fixed
+- [x] `calculate90DayDemob` correctly scoped to employees, not job orders
+- [x] `targetDemobDate` removed from `JobOrder` model
+- [x] `startDate` optional on job order creation
+- [x] Server restructured into modules: `operations`, `users`, `finance`, `core`, `shared`
+- [x] RBAC replaced with per-module permission matrix (`MODULE_LEVELS` 0–3 + `superAdmin`)
+- [x] `requireModuleLevel` middleware + `usePermissions` hook + `ProtectedRoute`
+- [x] Module registry (`modules.config.js`) as single source of truth for nav/routes
+- [x] Startup migrations for employee documents and user permissions
+- [x] `EditJobOrderPage` with trade-deduplication in dropdowns
+- [x] `DashboardPage` added as root route
+- [x] `TradesPage` and `StaffPage` admin UIs
+- [x] Site name shown beneath status badge in `DirectoryPage`
 
-**Status: in progress — this is the current phase.**
+**Status: complete.**
 
 ---
 
-## Phase 4 — Scale & Usability
-*Everything that matters once the core is trustworthy and the team is actually using it daily.*
+## Phase 4 — Finance Module
+*Timesheet and financial tracking per job order.*
 
-- [ ] Server-side filtering/pagination for the employee list (backend
-      already accepts the query params; frontend doesn't send them yet)
-- [ ] Role-aware UI — hide/disable actions the current user's level can't
-      perform, instead of relying on the server 403 alone
+- [x] `Timesheet` model (per job order, per month, per-employee daily records)
+- [x] `/api/finance/timesheets` routes
+- [x] `TimesheetsPage` scaffolded with lazy loading, gated behind `finance >= 1`
+- [ ] Timesheet creation flow (select job order + month, auto-populate from mobilized slots)
+- [ ] Timesheet editing (day selection, standard/overtime hours per employee)
+- [ ] Approval flow (`DRAFT → SUBMITTED → APPROVED`) with authorizer
+- [ ] Timesheet export (Excel/PDF)
+- [ ] Finance dashboard summary (hours by job order, overtime breakdown)
+
+**Status: in progress — model and routes done, UI needs building out.**
+
+---
+
+## Phase 5 — Scale & Usability
+*Everything that matters once the core is trustworthy and the team is using it daily.*
+
+- [ ] Role-aware UI — audit all pages to use `usePermissions` for hiding/disabling
+      actions, not just relying on server 403
+- [ ] Dashboard real data — wire `DashboardPage` to actual summary stats
+- [ ] Server-side filtering/pagination for employee list
 - [ ] Finish Tailwind → `tokens.css` migration across remaining files
-- [ ] User management UI (list/view/deactivate accounts — currently there's
-      no way to see existing users at all outside the database)
-- [ ] Reporting/export (e.g. compliance-expiry report, deployment history
-      export)
+- [ ] Reporting/export (compliance-expiry report, deployment history export)
 - [ ] Notifications for upcoming document/training expiries
-- [ ] Anything beyond this is a new scope decision, not an assumed next
-      step — see PRD.md §6 for what's explicitly out of scope today.
+- [ ] Anything beyond this is a new scope decision — see PRD.md §6 for what's
+      explicitly out of scope today.
 
 **Status: not started.**

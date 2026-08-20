@@ -1,70 +1,82 @@
 # Memory
 
-Living snapshot of project state. Update this whenever a phase item moves
-from open to done, or priorities change — this is meant to be the first
-thing read (by a person or another AI) before picking up work, so it needs
-to stay accurate rather than aspirational.
+Living snapshot of project state. Update this whenever something moves from
+open to done, or priorities change — this is meant to be the first thing
+read before picking up work, so it needs to stay accurate rather than
+aspirational.
 
-**Last verified against actual code:** 10 Aug 2026
+**Last verified against actual code:** current
 
 ---
 
 ## What's been completed
 
 **Foundation (Phase 1) — done**
-- Full-stack scaffold: Vite/React client, Express/MongoDB server, JWT auth,
-  4-level role hierarchy enforced server-side.
+- Full-stack scaffold: Vite/React client, Express/MongoDB server, JWT auth.
 - Core models: `User`, `Employee`, `JobOrder` (embedded slots), `AuditLog`,
   `Specialization`.
-- Employee Directory and Job Orders pages, both with working create and
-  Excel-import flows.
+- Employee Directory and Job Orders pages with create and Excel-import flows.
 
 **Deployment pipeline & audit trail (Phase 2) — done**
 - Full slot pipeline with mandatory audit-gated transitions (reason +
   authorizer required on every change).
 - Admin Override hard-lock on Booked/Mobilized slots.
-- Audit Log viewer page, wired into navigation — this closed the biggest gap
-  found in the original review (the write-path existed before the read-path
-  did).
-- Several bugs found during review have since been fixed and verified in
-  the current code:
-  - Auto-Suggest drawer's query-key mismatch (was always returning zero
-    candidates) — fixed, now reads the correct cache key.
-  - Duplicate `AuditModal` mount (was rendered both globally and inside
-    `AssignToJobModal`) — fixed, only one instance now.
-  - `StatusBadge` not handling `HALTED` — fixed, merged into a combined
-    "Vacation / Halted" badge.
-  - Six dead component files — removed.
-  - `CreateEmployeeModal` — now actually wired up to the "+ Add Employee"
-    button (previously dead code).
+- Audit Log viewer page wired into navigation.
+- Auto-Suggest drawer working correctly.
+- Fixed: Auto-Suggest query-key mismatch, duplicate AuditModal mount,
+  dead component files, StatusBadge HALTED handling.
 
-**Data integrity work (Phase 3) — partially done**
-- `Specialization` model and admin-managed CRUD flow built and working:
-  create, list by trade, deactivate.
-- Employee Excel import now validates trade (and specialization, if
-  present) against known values before writing, instead of writing
-  unvalidated strings — this was the root cause of employees ending up with
-  trade values like `"WELDER"` that didn't match the enum.
-- Import switched from unvalidated `bulkWrite` to `findOneAndUpdate` with
-  `runValidators: true`.
-- One-time cleanup script (`server/scripts/fixEmployeeTrades.js`) written
-  for pre-existing bad trade data from before validation existed.
+**Data integrity (Phase 3) — done**
+- `Specialization.trades[]` — array, supports multi-trade specializations
+  (e.g. "E&I" → Technician + Foreman). Pre-save hook bug fixed (`next`
+  now correctly passed as parameter).
+- `Trade` model — trades are DB-managed via `TradesPage`, seeded on first
+  boot from `TRADES` constant via `seedTrades.js`. No longer a hardcoded enum.
+- `Staff` model — admin-managed lookup for audit "Authorized By" field,
+  with designation. Managed via `StaffPage`.
+- Employee import validates trade against the active `Trade` collection.
+- `updateEmployee` emiratesId sparse-index bug fixed — empty emiratesId is
+  omitted from `$set` instead of being set to `null`.
+- `calculate90DayDemob` correctly scoped — demob date applies to employees
+  (`currentAssignment.targetDemobDate` and `slot.demobDate`), not to job
+  orders. `targetDemobDate` removed from `JobOrder` model and schema.
+- `startDate` made optional on job order creation.
+- Duplicate `requirements` key in `createJobOrder` removed.
+- `startdate` typo in `importJobOrdersFromExcel` fixed to `startDate`.
 
----
+**Architecture refactor — done**
+- Server restructured from flat to modular: `server/modules/operations/`,
+  `server/modules/users/`, `server/modules/finance/`, `server/core/`,
+  `server/shared/`.
+- RBAC replaced: old flat `ROLE_LEVELS` (1–4) replaced with a per-module
+  permission matrix (`operations`, `finance`, `superAdmin`) on `User`.
+  `MODULE_LEVELS`: 0=none, 1=viewer, 2=operator, 3=admin.
+- `requireModuleLevel(module, level)` middleware replaces `requireLevel(n)`.
+- `usePermissions(moduleName)` hook + `ProtectedRoute` component mirror
+  the same logic client-side.
+- Module registry (`modules.config.js`) is the single source of truth for
+  nav items, routes, and required permission levels per module.
+- `useModuleStore` (Zustand) tracks the active module for the topbar
+  module switcher.
+- Startup migrations run automatically on boot: `migrateEmployeeDocuments`,
+  `migrateUserPermissions`.
 
-## What's currently being worked on
+**UI additions — done**
+- `DashboardPage` added as the root `/` route.
+- `EditJobOrderPage` — full job order edit with trade allocation management.
+  Trade dropdowns filter out already-used trades; "Add Trade" disabled when
+  all trades are exhausted.
+- `TradesPage` — admin UI for managing the Trade lookup list.
+- `StaffPage` — admin UI for managing the Staff lookup list.
+- `Topbar` with module switcher.
+- `CertificationsSection` component in employee forms.
+- Site name shown beneath status badge in `DirectoryPage`.
 
-**Specialization → trade relationship.** Currently `Specialization.trade`
-is a single required string, which makes it impossible for one
-specialization to apply to more than one trade — but real cases like "E&I"
-genuinely need to span Foreman, Technician, Supervisor, and Fitter at once.
-The unique index on `nameLower` alone (not `nameLower` + `trade`) means this
-isn't just a design limitation, it's an active bug: creating the same
-specialization name under a second trade fails outright today.
-
-The fix is scoped: `trade: String` → `trades: [String]` on the model, plus
-matching updates to `getSpecializations`, `createSpecialization`, and
-`resolveSpecialization` in the controllers. Not yet applied.
+**Finance module (initial) — done**
+- `Timesheet` model: per job order per month, per-employee daily records
+  with standard + overtime hours. Unique index on `(jobOrderId, month, year)`.
+- `/api/finance/timesheets` routes wired up.
+- `TimesheetsPage` scaffolded with lazy loading, gated behind `finance >= 1`.
 
 ---
 
@@ -72,24 +84,17 @@ matching updates to `getSpecializations`, `createSpecialization`, and
 
 In priority order:
 
-1. **Fix `updateEmployee`'s silent no-op bug.** It correctly computes an
-   update payload including resolved trade/specialization, then writes a
-   different object that excludes both — so trade and specialization edits
-   currently never persist through the UI. Small fix, but it blocks a real,
-   already-built feature (editing an employee's trade/specialization) and
-   should land before anything else on this list.
-2. **Apply the Specialization `trades: [String]` migration** described
-   above, including a one-time conversion of any existing single-`trade`
-   specialization records.
-3. **Security/hardening pass:** validate `level` on user creation against
-   known `ROLE_LEVELS` values, add an audit-log entry for account creation
-   (especially new Admins), fix `User.level`'s schema default (currently
-   defaults to Admin), rotate/env-source `seedAdmin.js` credentials.
-4. **Finalize the `TRADES` list** for actual EPC O&G scope — a draft
-   grouped by discipline (mechanical/piping, civil, surface protection,
-   electrical & instrumentation, QA/QC, HSE, supervision, support) has
-   already been worked through; Scaffolder, Painter/Blaster, Electrician,
-   and Instrument Technician are the clearest gaps in the current list.
-5. Everything else in Phase 3/4 (see Phases.md) — request validation layer
-   more broadly, Tailwind migration cleanup, server-side pagination, role-
-   aware UI.
+1. **Finance module depth** — `TimesheetsPage` is scaffolded; timesheet
+   creation, editing (day selection, standard/overtime hours), approval flow
+   (`DRAFT → SUBMITTED → APPROVED`), and export need to be built out.
+2. **Dashboard real data** — `DashboardPage` exists; wire up actual summary
+   stats (workforce counts, open slots, expiring documents, mobilized count).
+3. **Role-aware UI** — `usePermissions` hook exists; audit all pages to
+   hide/disable actions the current user's level can't perform, rather than
+   relying on server 403 alone.
+4. **Server-side pagination** — employee list has no pagination; backend
+   already accepts `trade`/`status`/`search` query params.
+5. **Security hardening** — `seedAdmin.js` credentials should be env-sourced
+   for any real deployment; JWT in `localStorage` is accepted debt for now.
+6. **Tailwind migration** — still present in several files; new code should
+   use `tokens.css` tokens only.

@@ -45,7 +45,13 @@ export default function DashboardLayout() {
     },
   });
 
-  const handleAuditConfirm = ({ pending, reasonForChange, authorizedBy, mobDate }) => {
+  const handleAuditConfirm = ({
+    pending,
+    reasonForChange,
+    authorizedBy,
+    mobDate,
+    demobDate,
+  }) => {
     const { action } = pending;
     if (action.type === "assign") {
       assignMutation.mutate({
@@ -75,7 +81,12 @@ export default function DashboardLayout() {
     } else if (action.type === "release") {
       releaseMutation.mutate({
         joId: action.joId,
-        payload: { slotId: action.slotIdx, reasonForChange, authorizedBy },
+        payload: {
+          slotId: action.slotIdx,
+          reasonForChange,
+          authorizedBy,
+          demobDate: demobDate || undefined,
+        },
       });
     }
   };

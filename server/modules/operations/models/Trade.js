@@ -12,9 +12,8 @@ const tradeSchema = new mongoose.Schema(
 
 tradeSchema.index({ nameLower: 1 }, { unique: true });
 
-tradeSchema.pre("save", async function (next) {
+tradeSchema.pre("save", async function () {
   this.nameLower = this.name.toLowerCase();
-  next();
 });
 
 export default mongoose.model("Trade", tradeSchema);

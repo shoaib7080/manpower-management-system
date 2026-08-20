@@ -532,7 +532,7 @@ function SlotActionPopover({ joId, slot, onClose }) {
         className="w-full px-2.5 py-1.5 rounded border border-outline-variant bg-surface-container-lowest text-label-sm text-on-surface-variant hover:bg-surface-container-low"
         title="Release worker"
         onClick={() => {
-          requestSwap(joId, slot._id, workerObj, slot.status);
+          requestSwap(joId, slot._id, workerObj, slot.status, slot.mobDate);
           onClose();
         }}
       >

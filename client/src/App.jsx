@@ -1,9 +1,11 @@
+import { lazy, Suspense } from "react";
 import {
   createBrowserRouter,
   Navigate,
   RouterProvider,
 } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext";
+import ProtectedRoute from "./components/ProtectedRoute";
 import DashboardLayout from "./layouts/DashboardLayout";
 import AuditLogPage from "./pages/AuditLogPage";
 import DirectoryPage from "./pages/DirectoryPage";
@@ -17,6 +19,10 @@ import TradesPage from "./pages/TradesPage";
 import UsersPage from "./pages/UserPage";
 import DashboardPage from "./pages/DashboardPage";
 
+const TimesheetsPage = lazy(
+  () => import("./modules/finance/pages/TimesheetsPage"),
+);
+
 const router = createBrowserRouter([
   {
     path: "/",
@@ -25,47 +31,104 @@ const router = createBrowserRouter([
     children: [
       {
         index: true,
-        element: <DashboardPage />,
+        element: (
+          <ProtectedRoute module="operations" level={1}>
+            <DashboardPage />
+          </ProtectedRoute>
+        ),
         errorElement: <PageErrorElement />,
       },
       {
         path: "directory",
-        element: <DirectoryPage />,
+        element: (
+          <ProtectedRoute module="operations" level={1}>
+            <DirectoryPage />
+          </ProtectedRoute>
+        ),
         errorElement: <PageErrorElement />,
       },
       {
         path: "job-orders",
-        element: <JobOrdersPage />,
+        element: (
+          <ProtectedRoute module="operations" level={1}>
+            <JobOrdersPage />
+          </ProtectedRoute>
+        ),
         errorElement: <PageErrorElement />,
       },
       {
         path: "job-orders/:id/edit",
-        element: <EditJobOrderPage />,
+        element: (
+          <ProtectedRoute module="operations" level={2}>
+            <EditJobOrderPage />
+          </ProtectedRoute>
+        ),
         errorElement: <PageErrorElement />,
       },
       {
         path: "audit-log",
-        element: <AuditLogPage />,
-        errorElement: <PageErrorElement />,
-      },
-      {
-        path: "users",
-        element: <UsersPage />,
+        element: (
+          <ProtectedRoute module="operations" level={1}>
+            <AuditLogPage />
+          </ProtectedRoute>
+        ),
         errorElement: <PageErrorElement />,
       },
       {
         path: "trades",
-        element: <TradesPage />,
+        element: (
+          <ProtectedRoute module="operations" level={3}>
+            <TradesPage />
+          </ProtectedRoute>
+        ),
         errorElement: <PageErrorElement />,
       },
       {
         path: "specializations",
-        element: <SpecializationsPage />,
+        element: (
+          <ProtectedRoute module="operations" level={3}>
+            <SpecializationsPage />
+          </ProtectedRoute>
+        ),
         errorElement: <PageErrorElement />,
       },
       {
         path: "staff",
-        element: <StaffPage />,
+        element: (
+          <ProtectedRoute module="operations" level={3}>
+            <StaffPage />
+          </ProtectedRoute>
+        ),
+        errorElement: <PageErrorElement />,
+      },
+      {
+        path: "users",
+        element: (
+          <ProtectedRoute superAdminOnly>
+            <UsersPage />
+          </ProtectedRoute>
+        ),
+        errorElement: <PageErrorElement />,
+      },
+
+      // ── Finance ───────────────────────────────────────────────────────────
+      {
+        path: "finance",
+        element: <Navigate to="/finance/timesheets" replace />,
+      },
+      {
+        path: "finance/timesheets",
+        element: (
+          <ProtectedRoute module="finance" level={1}>
+            <Suspense
+              fallback={
+                <div className="p-6 text-xs text-slate-500">Loading…</div>
+              }
+            >
+              <TimesheetsPage />
+            </Suspense>
+          </ProtectedRoute>
+        ),
         errorElement: <PageErrorElement />,
       },
     ],

@@ -1,5 +1,8 @@
 import xlsx from "xlsx";
-import { EMPLOYEE_STATUS, ROLE_LEVELS } from "../../../core/config/constants.js";
+import {
+  EMPLOYEE_STATUS,
+  ROLE_LEVELS,
+} from "../../../core/config/constants.js";
 import AuditLog from "../../../shared/models/AuditLog.js";
 import Employee from "../models/Employee.js";
 import JobOrder from "../models/JobOrder.js";
@@ -292,8 +295,10 @@ export const updateJobOrder = async (req, res, next) => {
     // Update simple fields
     if (siteName !== undefined) jobOrder.siteName = siteName.trim();
     if (clientCategory !== undefined) jobOrder.clientCategory = clientCategory;
-    if (projectEngineer !== undefined) jobOrder.projectEngineer = projectEngineer.trim();
-    if (startDate !== undefined) jobOrder.startDate = startDate ? new Date(startDate) : null;
+    if (projectEngineer !== undefined)
+      jobOrder.projectEngineer = projectEngineer.trim();
+    if (startDate !== undefined)
+      jobOrder.startDate = startDate ? new Date(startDate) : null;
     if (status !== undefined) jobOrder.status = status;
 
     // Reconcile trade requirements & slots if requirements changed
@@ -347,20 +352,23 @@ export const updateJobOrder = async (req, res, next) => {
     }
 
     await jobOrder.save();
-    const populated = await jobOrder.populate("slots.assignedEmployee", "name employeeId trade status");
+    const populated = await jobOrder.populate(
+      "slots.assignedEmployee",
+      "name employeeId trade status",
+    );
     res.status(200).json({ message: "Job order updated.", data: populated });
   } catch (error) {
     next(error);
   }
 };
 
-
 // @route   PUT /api/job-orders/:id/update-slot-pipeline
 // @access  Protected
 export const updateSlotPipeline = async (req, res, next) => {
   try {
     const { id: jobOrderId } = req.params;
-    const { slotId, targetStatus, mobDate, reasonForChange, authorizedBy } = req.body;
+    const { slotId, targetStatus, mobDate, reasonForChange, authorizedBy } =
+      req.body;
 
     // Enforce mandatory audit inputs
     if (!reasonForChange || !authorizedBy) {
@@ -556,6 +564,8 @@ export const assignEmployeeToSlot = async (req, res, next) => {
         newStatus: resolvedStatus,
         previousSite: "Subcontractor / External",
         newSite: jobOrder.siteName,
+        mobDate: actualMobDate,
+        demobDate: actualDemobDate,
         reasonForChange: reasonForChange,
         authorizedBy: authorizedBy,
         updatedByUserId: req.user._id,
@@ -638,6 +648,8 @@ export const assignEmployeeToSlot = async (req, res, next) => {
       newStatus: resolvedStatus,
       previousSite: previousSite,
       newSite: jobOrder.siteName,
+      mobDate: actualMobDate,
+      demobDate: actualDemobDate,
       reasonForChange: reasonForChange,
       authorizedBy: authorizedBy,
       updatedByUserId: req.user._id,
@@ -661,7 +673,11 @@ export const assignEmployeeToSlot = async (req, res, next) => {
 export const releaseEmployeeFromSlot = async (req, res, next) => {
   try {
     const { id: jobOrderId } = req.params;
-    const { slotId, reasonForChange, authorizedBy, newStatus } = req.body;
+    const { slotId, reasonForChange, authorizedBy, newStatus, demobDate } =
+      req.body;
+
+    const slotMobDate = slot.mobDate;
+    const resolvedDemobDate = demobDate ? new Date(demobDate) : new Date();
 
     if (!reasonForChange || !authorizedBy) {
       return res.status(400).json({
@@ -707,6 +723,8 @@ export const releaseEmployeeFromSlot = async (req, res, next) => {
         newStatus: "UNASSIGNED",
         previousSite: jobOrder.siteName,
         newSite: "Bench / Released",
+        mobDate: slotMobDate,
+        demobDate: resolvedDemobDate,
         reasonForChange: reasonForChange,
         authorizedBy: authorizedBy,
         updatedByUserId: req.user._id,
@@ -757,6 +775,8 @@ export const releaseEmployeeFromSlot = async (req, res, next) => {
         newStatus: nextStatus,
         previousSite: previousSite,
         newSite: "Bench / Released",
+        mobDate: slotMobDate,
+        demobDate: resolvedDemobDate,
         reasonForChange: reasonForChange,
         authorizedBy: authorizedBy,
         updatedByUserId: req.user._id,
