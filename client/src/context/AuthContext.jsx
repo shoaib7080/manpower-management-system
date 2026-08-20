@@ -1,4 +1,3 @@
-// client/src/context/AuthContext.jsx
 import { createContext, useContext, useEffect, useState } from 'react';
 import api from '../api/axiosInstance';
 
@@ -9,12 +8,19 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check local storage for existing session
     const storedUser = localStorage.getItem('user');
     const token = localStorage.getItem('token');
 
     if (storedUser && token) {
-      setUser(JSON.parse(storedUser));
+      const parsed = JSON.parse(storedUser);
+      // Invalidate pre-Phase-2 sessions that carry the old flat `level` field
+      // or that are missing the new permissions object entirely.
+      if (parsed.level !== undefined || !parsed.permissions) {
+        localStorage.removeItem('user');
+        localStorage.removeItem('token');
+      } else {
+        setUser(parsed);
+      }
     }
     setLoading(false);
   }, []);
@@ -22,8 +28,6 @@ export function AuthProvider({ children }) {
   const login = async (email, password) => {
     const res = await api.post('/auth/login', { email, password });
     const userData = res.data;
-
-    // Persist session
     localStorage.setItem('token', userData.token);
     localStorage.setItem('user', JSON.stringify(userData));
     setUser(userData);
@@ -37,7 +41,17 @@ export function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, isAuthenticated: !!user, loading }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        // Expose permissions directly so consumers don't need to drill into user.permissions
+        permissions: user?.permissions ?? null,
+        login,
+        logout,
+        isAuthenticated: !!user,
+        loading,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

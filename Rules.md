@@ -8,10 +8,10 @@ reintroducing problems that have already been found and fixed once.
 
 **Categorical data that grows over time → a managed lookup collection, not
 a hardcoded enum, not free text.**
-This is the `Specialization` model pattern. If you're adding a new field
-that represents "one of a set of named things that isn't fixed forever"
-(certifications, site names, equipment types, whatever comes up), follow
-this shape: a small collection with `name`, an `active` flag for
+`Specialization` and `Trade` are both examples of this pattern. If you're
+adding a new field that represents "one of a set of named things that isn't
+fixed forever" (certifications, site names, equipment types, whatever comes
+up), follow this shape: a small collection with `name`, an `active` flag for
 soft-disable, and controller-level validation against it — not a Mongoose
 `enum` (too rigid, needs a deploy to extend) and not an unrestricted string
 (recreates the exact data-drift bug this app was built to eliminate).
@@ -19,9 +19,10 @@ soft-disable, and controller-level validation against it — not a Mongoose
 **Server state → React Query. UI-only state → Zustand. Never mixed.**
 `useDashboardStore` holds only "which overlay is open and what it's acting
 on." It has never held actual employee/job-order data, and it should not
-start now. If a new feature needs both, keep them in their respective
-systems and let components read from both rather than duplicating server
-data into the store.
+start now. `useModuleStore` holds only the active module for the nav
+switcher. If a new feature needs both server and UI state, keep them in
+their respective systems and let components read from both rather than
+duplicating server data into the store.
 
 **Any write to a Mongoose model → explicit validators.**
 `findOneAndUpdate` / `findByIdAndUpdate` with `{ runValidators: true }`, or
@@ -41,12 +42,16 @@ it writes an audit record in the same request, with a real
 (Auto-Suggest, assignment eligibility, `/suggest` query). `specialization`
 is never part of this comparison.
 
+**New permission checks → `requireModuleLevel(module, level)`, not
+`requireLevel(n)`.**
+`ROLE_LEVELS` and `requireLevel` are deprecated. All new routes must use the
+module-level system. See Architecture.md §3 for the full permission model.
+
 ## 2. What to avoid
 
 **Tailwind utility classes.**
 The app has moved to the `tokens.css` design system. Tailwind is still a
-dependency and still present in a few files (`LoginPage.jsx`, the loading
-state in `App.jsx`, `CreateJobOrdersModal.jsx`) purely as migration debt —
+dependency and still present in a few files purely as migration debt —
 new code should not add more of it, and touching one of those files is a
 good moment to convert it rather than leave it mixed.
 
@@ -59,18 +64,10 @@ fragile and tends to be patched forever instead of fixed once.
 
 **Trusting `req.body` values without checking them against known-valid
 sets.**
-`level` on user creation is the clearest example — nothing currently stops
-an out-of-range or nonsensical value from being accepted. Any field that
-represents a constrained real-world value (a role level, a status, a trade)
-should be checked against its valid set explicitly in the controller, not
-assumed safe because the schema has an enum somewhere upstream of it.
-
-**Silent no-ops.**
-`updateEmployee` currently computes a correct update payload and then
-writes a different, incomplete one instead — an intentional-looking bug
-that fails silently (200 OK, no error, but the field just doesn't change).
-When writing a mutation, make sure the object being validated/logged is the
-same object actually being persisted.
+Any field that represents a constrained real-world value (a permission
+level, a status, a trade) should be checked against its valid set
+explicitly in the controller, not assumed safe because the schema has an
+enum somewhere upstream of it.
 
 ## 3. Error handling convention
 
@@ -80,7 +77,7 @@ Use this consistently across controllers:
 |---|---|---|
 | Validation failure (bad input, unknown enum value, missing required field) | 400 | `{ message: "<specific, actionable message>" }` |
 | Not authenticated | 401 | `{ message: "Not authorized" }` |
-| Authenticated but insufficient role level | 403 | `{ message: "<what level is required>" }` |
+| Authenticated but insufficient permission level | 403 | `{ message: "<what level is required>" }` |
 | Resource not found | 404 | `{ message: "<resource> not found." }` |
 | Unexpected server error | 500 | `{ message: "<generic message>", error: error.message }` — never leak a stack trace |
 
@@ -94,24 +91,25 @@ than failing the whole request on the first bad row.
   metadata. If a future request wants specialization-aware matching, that's
   a new feature to flag back to the person, not something to wire in as a
   side effect of another change.
-- **Don't touch `TRADES` casually.** It's the one enum in this system that
-  genuinely should stay small, stable, and code-reviewed — every value in
-  it is a real matching key used across job orders and employees. Adding a
-  trade is fine; renaming or removing one needs a data migration, not just
-  a code change.
-- **Don't restrict who can create an Admin account.** The fix for
-  admin-creating-admin is validation + an audit trail on the action, not
-  blocking the capability — see the reasoning already worked through for
-  this in project history. Re-litigating this from scratch wastes a turn.
-- **Don't "fix" `User.level`'s schema default in isolation** without also
-  checking every place a `User` is created — the goal is consistent
-  least-privilege defaults everywhere, not just papering over one call
-  site.
+- **Don't rename or remove a trade without a data migration.** Every trade
+  name is a real matching key used across job orders and employees. Adding
+  a trade is safe; renaming or removing one needs a migration, not just a
+  UI change.
+- **Don't add a new module without updating `modules.config.js`.** The
+  module registry is the single source of truth for nav, routes, and
+  required permission levels. Adding routes in `App.jsx` without a
+  corresponding entry in the registry means the nav won't reflect it.
+- **Don't bypass `requireModuleLevel` with `requireLevel`.** The old
+  middleware is deprecated. Using it in new code re-introduces the flat
+  hierarchy that was deliberately replaced.
 
 ## 5. Known, accepted debt (intentionally deferred, not forgotten)
 
 Listed here so it isn't mistaken for something nobody noticed:
 
+- `ROLE_LEVELS` and `requireLevel()` in `constants.js` / `authMiddleware.js`
+  are deprecated but not yet removed — kept until all legacy callsites are
+  migrated to `requireModuleLevel()`. Don't use in new code.
 - Tailwind still present in a handful of files, pending full migration to
   `tokens.css`.
 - JWT stored in `localStorage` rather than an httpOnly cookie — accepted for
@@ -122,3 +120,5 @@ Listed here so it isn't mistaken for something nobody noticed:
 - No server-side pagination on the employee list — fine at current scale,
   will need `trade`/`status`/`search` query params wired up (the backend
   already accepts them) once the roster grows.
+- `seedAdmin.js` credentials are hardcoded — must be rotated / env-sourced
+  before any real deployment.

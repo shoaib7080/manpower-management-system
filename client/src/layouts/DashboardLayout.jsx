@@ -45,14 +45,24 @@ export default function DashboardLayout() {
     },
   });
 
-  const handleAuditConfirm = ({ pending, reasonForChange, authorizedBy }) => {
+  const handleAuditConfirm = ({
+    pending,
+    reasonForChange,
+    authorizedBy,
+    mobDate,
+    demobDate,
+  }) => {
     const { action } = pending;
     if (action.type === "assign") {
       assignMutation.mutate({
         joId: action.joId,
         payload: {
           slotId: action.slotIdx,
-          employeeId: action.empId,
+          employeeId: action.empId || undefined,
+          isExternal: action.isExternal || false,
+          externalWorker: action.externalWorker || undefined,
+          targetStatus: action.targetStatus || "RESERVED",
+          mobDate: mobDate || undefined,
           reasonForChange,
           authorizedBy,
         },
@@ -63,6 +73,7 @@ export default function DashboardLayout() {
         payload: {
           slotId: action.slotIdx,
           targetStatus: action.targetStatus,
+          mobDate: mobDate || undefined,
           reasonForChange,
           authorizedBy,
         },
@@ -70,7 +81,12 @@ export default function DashboardLayout() {
     } else if (action.type === "release") {
       releaseMutation.mutate({
         joId: action.joId,
-        payload: { slotId: action.slotIdx, reasonForChange, authorizedBy },
+        payload: {
+          slotId: action.slotIdx,
+          reasonForChange,
+          authorizedBy,
+          demobDate: demobDate || undefined,
+        },
       });
     }
   };

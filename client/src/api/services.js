@@ -1,55 +1,14 @@
-import api from "./axiosInstance";
-
-export const fetchEmployees = (params) => api.get("/manpower", { params });
-export const uploadExcel = (formData) =>
-  api.post("/manpower/import", formData, {
-    headers: { "Content-Type": "multipart/form-data" },
-  });
-
-export const fetchJobOrders = (params) => api.get("/job-orders", { params });
-export const fetchSlotSuggestions = (params) =>
-  api.get("/job-orders/suggest", { params });
-export const assignSlot = (jobOrderId, payload) =>
-  api.put(`/job-orders/${jobOrderId}/assign-slot`, payload);
-export const releaseSlot = (jobOrderId, payload) =>
-  api.put(`/job-orders/${jobOrderId}/release-slot`, payload);
-export const updateSlotPipeline = (jobOrderId, payload) =>
-  api.put(`/job-orders/${jobOrderId}/update-slot-pipeline`, payload);
-
-export const createEmployee = (payload) => api.post("/manpower", payload);
-export const createJobOrder = (payload) => api.post("/job-orders", payload);
-
-export const updateEmployee = (id, payload) =>
-  api.put(`/manpower/${id}`, payload);
-export const deleteEmployee = (id) => api.delete(`/manpower/${id}`);
-export const uploadEmployeeCert = (formData) =>
-  api.post("/manpower/upload-cert", formData, {
-    headers: { "Content-Type": "multipart/form-data" },
-  });
-
-export const uploadJobOrderExcel = (formData) =>
-  api.post("/job-orders/import", formData, {
-    headers: { "Content-Type": "multipart/form-data" },
-  });
-
-export const fetchAuditLogs = (params) => api.get("/audit-logs", { params });
-
-export const getSpecializations = (trade) =>
-  api.get("/specializations", { params: trade ? { trade } : {} });
-export const createSpecialization = (payload) =>
-  api.post("/specializations", payload);
-export const updateSpecialization = (id, payload) =>
-  api.put(`/specializations/${id}`, payload);
-export const deactivateSpecialization = (id) =>
-  api.patch(`/specializations/${id}/deactivate`);
-
-export const getTrades = (params) => api.get("/trades", { params });
-export const createTrade = (payload) => api.post("/trades", payload);
-export const updateTrade = (id, payload) => api.put(`/trades/${id}`, payload);
-export const deactivateTrade = (id) => api.patch(`/trades/${id}/deactivate`);
-
-export const getUsers = () => api.get("/auth/users");
-export const createUser = (payload) => api.post("/auth/register", payload);
-export const deleteUser = (id) => api.delete(`/auth/users/${id}`);
-export const updateUser = (id, payload) =>
-  api.put(`/auth/users/${id}`, payload);
+/**
+ * Barrel re-export — maintains backward compatibility for all existing
+ * `import { x } from '../api/services'` statements across page and
+ * component files. No page files need to change.
+ *
+ * New code should import directly from the domain API files:
+ *   import { fetchEmployees } from '../api/operations.api';
+ *   import { getUsers }       from '../api/users.api';
+ *   import { fetchAuditLogs } from '../api/shared.api';
+ */
+export * from "./operations.api.js";
+export * from "./users.api.js";
+export * from "./shared.api.js";
+export * from "./finance.api.js";

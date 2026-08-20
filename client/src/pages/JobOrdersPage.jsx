@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { X } from "lucide-react";
+import { Edit2, X } from "lucide-react";
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { createJobOrder, fetchJobOrders } from "../api/services";
 import CreateJobOrderModal from "../components/jobOrders/CreateJobOrdersModal";
 import JobOrderImportModal from "../components/jobOrders/JobOrderImportModal";
@@ -117,6 +118,7 @@ export default function JobOrdersPage() {
 }
 
 function JobOrderCard({ jo, selected, onOpen }) {
+  const navigate = useNavigate();
   const total = jo.slots.length;
   const filled = jo.slots.filter((s) => s.status !== "UNASSIGNED").length;
   const mobilized = jo.slots.filter((s) => s.status === "MOBILIZED").length;
@@ -140,11 +142,23 @@ function JobOrderCard({ jo, selected, onOpen }) {
             {jo.siteName}
           </h4>
         </div>
-        <span
-          className={`inline-flex items-center px-2 py-1 rounded-full text-[10px] font-bold shrink-0 ${healthCls}`}
-        >
-          {healthLabel}
-        </span>
+        <div className="flex items-center gap-1.5 shrink-0">
+          <span
+            className={`inline-flex items-center px-2 py-1 rounded-full text-[10px] font-bold ${healthCls}`}
+          >
+            {healthLabel}
+          </span>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              navigate(`/job-orders/${jo._id}/edit`);
+            }}
+            className="w-7 h-7 rounded flex items-center justify-center border border-outline-variant text-on-surface-variant hover:border-primary hover:text-primary hover:bg-primary-fixed/20 transition-colors"
+            title="Edit Job Order"
+          >
+            <Edit2 size={12} />
+          </button>
+        </div>
       </div>
 
       <div className="flex items-center gap-2 text-on-surface-variant mb-4 text-label-sm">
@@ -340,13 +354,26 @@ function JobOrderDrawer({ jo, onClose }) {
                             setActiveSlot({ slot, slotIdx: slot._idx })
                           }
                           className="aspect-square bg-surface border border-outline-variant rounded flex flex-col items-center justify-center p-1 relative hover:border-primary-container transition-colors"
-                          title={slot.assignedEmployee?.name}
+                          title={
+                            slot.assignedEmployee?.name ||
+                            slot.externalWorker?.name
+                          }
                         >
-                          <div className="w-6 h-6 bg-surface-container-high rounded-full mb-1 flex items-center justify-center text-[10px] font-bold text-on-surface-variant">
-                            {initials(slot.assignedEmployee?.name)}
+                          <div
+                            className={`w-6 h-6 rounded-full mb-1 flex items-center justify-center text-[10px] font-bold ${
+                              slot.externalWorker?.isExternal
+                                ? "bg-amber-500/20 text-amber-800 border border-amber-500/30"
+                                : "bg-surface-container-high text-on-surface-variant"
+                            }`}
+                          >
+                            {initials(
+                              slot.assignedEmployee?.name ||
+                                slot.externalWorker?.name,
+                            )}
                           </div>
                           <span className="font-mono-data text-[9px] truncate w-full text-center text-on-surface-variant">
-                            {slot.assignedEmployee?.employeeId || "—"}
+                            {slot.assignedEmployee?.employeeId ||
+                              (slot.externalWorker?.isExternal ? "EXT" : "—")}
                           </span>
                           <div
                             className={`absolute top-1 right-1 w-1.5 h-1.5 rounded-full ${STATUS_DOT[slot.status] || "bg-outline"}`}
@@ -393,15 +420,21 @@ function initials(name) {
   return (parts[0][0] + (parts[1]?.[0] || "")).toUpperCase();
 }
 
-// Small anchored popover for a filled slot tile — worker detail + the same
-// advance/release actions the old inline slot cards had, just reached via a
-// click instead of always being on-screen, to make room for the compact
-// tile grid.
+// Small anchored popover for a filled slot tile — worker detail + status change/release actions
 function SlotActionPopover({ joId, slot, onClose }) {
   const requestAdvance = useDashboardStore((s) => s.requestAdvance);
   const requestSwap = useDashboardStore((s) => s.requestSwap);
+  const [selectedStatus, setSelectedStatus] = useState("");
   const emp = slot.assignedEmployee;
+  const isExt = Boolean(slot.externalWorker?.isExternal);
+  const workerObj = emp || {
+    name: slot.externalWorker?.name || "Subcontractor Worker",
+    trade: slot.trade,
+  };
   const stageIdx = STAGES.indexOf(slot.status);
+
+  // Forward statuses available from current position
+  const forwardStatuses = STAGES.slice(stageIdx + 1);
 
   return (
     <div
@@ -410,11 +443,20 @@ function SlotActionPopover({ joId, slot, onClose }) {
     >
       <div className="flex justify-between items-start mb-2 pb-2 border-b border-outline-variant">
         <div>
-          <div className="text-body-sm font-semibold text-on-surface">
-            {emp?.name}
+          <div className="text-body-sm font-semibold text-on-surface flex items-center gap-1.5">
+            <span>
+              {slot.assignedEmployee?.name || slot.externalWorker?.name}
+            </span>
+            {isExt && (
+              <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-800 border border-amber-500/30">
+                EXT
+              </span>
+            )}
           </div>
           <div className="font-mono-data text-[10px] text-on-surface-variant">
-            {emp?.employeeId} · Slot {slot.slotNumber}
+            {slot.assignedEmployee
+              ? `${slot.assignedEmployee.employeeId} · Slot ${slot.slotNumber}`
+              : `${slot.externalWorker?.company || "Subcontractor"} · Slot ${slot.slotNumber}`}
           </div>
         </div>
         <button
@@ -444,33 +486,58 @@ function SlotActionPopover({ joId, slot, onClose }) {
         ))}
       </div>
 
-      <div className="flex gap-1.5">
-        {stageIdx < STAGES.length - 1 ? (
-          <button
-            className="flex-1 border border-outline-variant bg-surface-container-lowest rounded px-2.5 py-1.5 text-label-sm text-on-surface hover:bg-surface-container-low"
-            onClick={() => {
-              requestAdvance(joId, slot._id, emp, slot.status);
-              onClose();
-            }}
-          >
-            → {STAGES[stageIdx + 1]}
-          </button>
-        ) : (
-          <span className="flex-1 text-center text-label-sm text-on-surface-variant font-semibold self-center">
-            ✓ Mobilized
-          </span>
-        )}
-        <button
-          className="px-2.5 py-1.5 rounded border border-outline-variant bg-surface-container-lowest text-label-sm text-on-surface-variant hover:bg-surface-container-low"
-          title="Release worker"
-          onClick={() => {
-            requestSwap(joId, slot._id, emp, slot.status);
-            onClose();
-          }}
-        >
-          ✕
-        </button>
-      </div>
+      {forwardStatuses.length > 0 ? (
+        <div className="mb-2">
+          <label className="text-[10px] font-medium text-on-surface-variant block mb-1">
+            Change Status To
+          </label>
+          <div className="flex gap-1.5">
+            <select
+              value={selectedStatus}
+              onChange={(e) => setSelectedStatus(e.target.value)}
+              className="flex-1 h-8 px-2 text-label-sm border border-outline-variant rounded bg-surface-container-lowest focus:border-primary focus:outline-none"
+            >
+              <option value="">Select status…</option>
+              {forwardStatuses.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
+            <button
+              className="h-8 px-2.5 rounded border border-outline-variant bg-surface-container-lowest text-label-sm text-on-surface hover:bg-surface-container-low disabled:opacity-40 disabled:cursor-not-allowed"
+              disabled={!selectedStatus}
+              onClick={() => {
+                requestAdvance(
+                  joId,
+                  slot._id,
+                  workerObj,
+                  slot.status,
+                  selectedStatus,
+                );
+                onClose();
+              }}
+            >
+              →
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="mb-2 text-center text-label-sm text-on-surface-variant font-semibold">
+          ✓ Mobilized
+        </div>
+      )}
+
+      <button
+        className="w-full px-2.5 py-1.5 rounded border border-outline-variant bg-surface-container-lowest text-label-sm text-on-surface-variant hover:bg-surface-container-low"
+        title="Release worker"
+        onClick={() => {
+          requestSwap(joId, slot._id, workerObj, slot.status, slot.mobDate);
+          onClose();
+        }}
+      >
+        ✕ Release Worker
+      </button>
     </div>
   );
 }

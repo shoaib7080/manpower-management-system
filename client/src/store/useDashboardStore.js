@@ -14,8 +14,8 @@ const useDashboardStore = create((set, get) => ({
   closeDrawer: () =>
     set((s) => ({ ui: { ...s.ui, drawer: { open: false, joId: null, slotIdx: null } } })),
 
-  // Called from SuggestDrawer after picking a candidate — opens AuditModal for AVAILABLE->RESERVED
-  openAssignAudit: (joId, slotIdx, emp) =>
+  // Called from SuggestDrawer after picking a candidate — user selects target status
+  openAssignAudit: (joId, slotIdx, emp, targetStatus = 'RESERVED') =>
     set((s) => ({
       ui: {
         ...s.ui,
@@ -26,16 +26,41 @@ const useDashboardStore = create((set, get) => ({
             workerName: emp.name,
             workerTrade: emp.trade,
             from: 'AVAILABLE',
-            to: 'RESERVED',
+            to: targetStatus,
             action: { type: 'assign', joId, slotIdx, empId: emp._id },
           },
         },
       },
     })),
 
-  // Forward pipeline advance — always goes through AuditModal
-  requestAdvance: (joId, slotIdx, emp, fromStatus) => {
-    const next = STAGES[STAGES.indexOf(fromStatus) + 1];
+  // Called when assigning an external/subcontractor worker
+  openAssignExternalAudit: (joId, slotIdx, externalWorker, trade, targetStatus = 'RESERVED') =>
+    set((s) => ({
+      ui: {
+        ...s.ui,
+        drawer: { open: false, joId: null, slotIdx: null, slotId: null },
+        audit: {
+          open: true,
+          pending: {
+            workerName: `${externalWorker.name}${externalWorker.company ? ` (${externalWorker.company})` : " (Subcontractor)"}`,
+            workerTrade: trade,
+            from: "UNASSIGNED",
+            to: targetStatus,
+            action: {
+              type: "assign",
+              joId,
+              slotIdx,
+              isExternal: true,
+              externalWorker,
+            },
+          },
+        },
+      },
+    })),
+
+  // Direct status selection — user picks target status via dropdown
+  requestAdvance: (joId, slotIdx, emp, fromStatus, targetStatus) => {
+    const resolvedTarget = targetStatus || STAGES[STAGES.indexOf(fromStatus) + 1];
     set((s) => ({
       ui: {
         ...s.ui,
@@ -45,8 +70,8 @@ const useDashboardStore = create((set, get) => ({
             workerName: emp.name,
             workerTrade: emp.trade,
             from: fromStatus,
-            to: next,
-            action: { type: 'advance', joId, slotIdx, targetStatus: next },
+            to: resolvedTarget,
+            action: { type: 'advance', joId, slotIdx, targetStatus: resolvedTarget },
           },
         },
       },
@@ -54,12 +79,13 @@ const useDashboardStore = create((set, get) => ({
   },
 
   // Swap/release — locked statuses go through AdminOverrideModal first
-  requestSwap: (joId, slotIdx, emp, currentStatus) => {
+  requestSwap: (joId, slotIdx, emp, currentStatus, mobDate) => {
     const pendingAudit = {
       workerName: emp.name,
       workerTrade: emp.trade,
       from: currentStatus,
       to: 'AVAILABLE',
+      mobDate: mobDate,
       action: { type: 'release', joId, slotIdx },
     };
     const locked = currentStatus === 'BOOKED' || currentStatus === 'MOBILIZED';

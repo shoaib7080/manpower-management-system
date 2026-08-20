@@ -1,34 +1,15 @@
-import {
-  Briefcase,
-  ClipboardList,
-  History,
-  LayoutDashboard,
-  LogOut,
-  ShieldCheck,
-  Tags,
-  Users,
-} from "lucide-react";
+import { LogOut } from "lucide-react";
 import { NavLink } from "react-router-dom";
+import { getModule } from "../config/modules.config";
 import { useAuth } from "../context/AuthContext";
+import usePermissions from "../hooks/usePermissions";
+import useModuleStore from "../store/useModuleStore";
 
 const LEGEND = [
   ["bg-outline", "Available"],
   ["bg-amber-500", "Reserved"],
   ["bg-indigo-500", "Booked · Locked"],
   ["bg-blue-500", "Mobilized · Locked"],
-];
-
-const NAV = [
-  { to: "/", label: "Dashboard", Icon: LayoutDashboard, end: true },
-  { to: "/directory", label: "Personnel Directory", Icon: Users },
-  { to: "/job-orders", label: "Job Orders", Icon: ClipboardList },
-  { to: "/audit-log", label: "Audit Trail", Icon: History },
-];
-
-const ADMIN_NAV = [
-  { to: "/users", label: "User Management", Icon: ShieldCheck },
-  { to: "/trades", label: "Trades", Icon: Briefcase },
-  { to: "/specializations", label: "Specializations", Icon: Tags },
 ];
 
 const navItemCls = ({ isActive }) =>
@@ -40,35 +21,51 @@ const navItemCls = ({ isActive }) =>
 
 export default function Sidebar() {
   const { user, logout } = useAuth();
+  const { activeModule } = useModuleStore();
+
+  // Get the current module's nav config from the central registry
+  const moduleConfig = getModule(activeModule);
+
+  // Check admin-level access for this module using the RBAC hook.
+  // This fixes the broken user?.level === 1 check — now correctly reads permissions.
+  const { isAdmin } = usePermissions(
+    activeModule === "superadmin" ? null : activeModule,
+  );
+
+  // Resolve the active module's icon for the brand area
+  const ModuleIcon = moduleConfig?.Icon;
 
   return (
     <div className="bg-surface-container-lowest border-r border-outline-variant flex flex-col p-3 sticky top-0 h-screen w-[232px] shrink-0">
+      {/* Brand / Module indicator */}
       <div className="flex items-center gap-2.5 px-1 pb-4 mb-2">
         <div className="w-[30px] h-[30px] rounded-lg bg-primary-container flex items-center justify-center text-on-primary font-bold text-label-md shrink-0">
-          MP
+          {ModuleIcon ? <ModuleIcon size={15} /> : "MP"}
         </div>
         <div className="leading-tight">
           <div className="font-bold text-label-md text-on-surface">
-            MANPOWER OPS
+            ERP PLATFORM
           </div>
-          <div className="text-[10px] text-outline font-medium tracking-wide">
-            Mobilisation Control
+          <div className="text-[10px] text-outline font-medium tracking-wide capitalize">
+            {moduleConfig?.label ?? "Operations"}
           </div>
         </div>
       </div>
 
-      {NAV.map(({ to, label, Icon }) => (
-        <NavLink key={to} to={to} className={navItemCls}>
+      {/* Primary nav — from module registry */}
+      {moduleConfig?.nav.map(({ to, label, Icon, end }) => (
+        <NavLink key={to} to={to} end={end} className={navItemCls}>
           <Icon size={16} /> {label}
         </NavLink>
       ))}
 
-      {user?.level === 1 && (
+      {/* Admin nav — only shown when user has admin-level access */}
+      {isAdmin && moduleConfig?.adminNav?.length > 0 && (
         <>
           <div className="text-[10px] font-bold tracking-wider uppercase text-outline px-2.5 pt-3 pb-1.5">
             Administration
           </div>
-          {ADMIN_NAV.map(({ to, label, Icon }) => (
+          {moduleConfig.adminNav.map(({ to, label, Icon }) => (
             <NavLink key={to} to={to} className={navItemCls}>
               <Icon size={16} /> {label}
             </NavLink>
@@ -76,6 +73,7 @@ export default function Sidebar() {
         </>
       )}
 
+      {/* Footer — legend + logout */}
       <div className="mt-auto pt-3.5 border-t border-outline-variant">
         <div className="text-[10px] text-outline tracking-wide mb-1.5 font-bold uppercase">
           Mobilisation Pipeline
