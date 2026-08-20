@@ -2,6 +2,11 @@ import mongoose from "mongoose";
 
 const auditLogSchema = new mongoose.Schema(
   {
+    jobOrderId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "JobOrder",
+      default: null,
+    },
     employeeId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Employee",

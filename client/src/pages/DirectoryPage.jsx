@@ -66,6 +66,7 @@ export default function DirectoryPage() {
   const [docFilter, setDocFilter] = useState("");
   const [trades, setTrades] = useState([]);
   const [search, setSearch] = useState("");
+  const [filterSearch, setFilterSearch] = useState("");
   const [importOpen, setImportOpen] = useState(false);
   const [viewEmp, setViewEmp] = useState(null);
   const [assignEmp, setAssignEmp] = useState(null);
@@ -127,7 +128,19 @@ export default function DirectoryPage() {
     setStatuses([]);
     setTrades([]);
     setDocFilter("");
+    setFilterSearch("");
   };
+
+  const fq = filterSearch.toLowerCase();
+  const visibleTrades = fq
+    ? availableTrades.filter((tr) => tr.toLowerCase().includes(fq))
+    : availableTrades;
+  const visibleStatuses = fq
+    ? STATUSES.filter((st) => STATUS_LABELS[st].toLowerCase().includes(fq))
+    : STATUSES;
+  const visibleDocs = fq
+    ? DOC_OPTIONS.filter(([, label]) => label.toLowerCase().includes(fq))
+    : DOC_OPTIONS;
 
   const vacationCount =
     (summary.total ?? 0) -
@@ -160,10 +173,10 @@ export default function DirectoryPage() {
 
       <div className="flex gap-3 flex-wrap my-[18px]">
         {[
-          ["Expired Certs", summary.expiredTrainings ?? 0, "text-error"],
-          ["Vacation / Halted", vacationCount, "text-error"],
-          ["Reserved", summary.reserved ?? 0, "text-amber-600"],
+          ["Mobilized", summary.mobilized ?? 0, "text-primary-container"],
+          ["Available", summary.available ?? 0, "text-green-600"],
           ["Total Workforce", summary.total ?? 0, "text-indigo-600"],
+          ["Halted", vacationCount, "text-error"],
         ].map(([label, num, numCls]) => (
           <div
             key={label}
@@ -191,69 +204,86 @@ export default function DirectoryPage() {
             </button>
           </div>
 
-          <div className="pb-3.5 mb-3.5 border-b border-outline-variant">
-            <div className="text-label-sm uppercase text-on-surface-variant mb-2">
-              Trade
-            </div>
-            {availableTrades.map((tr) => (
-              <label
-                key={tr}
-                className="flex items-center gap-2 text-body-sm text-on-surface py-1 cursor-pointer"
-              >
-                <input
-                  type="checkbox"
-                  className="w-3.5 h-3.5 accent-primary-container"
-                  checked={trades.includes(tr)}
-                  onChange={() => toggleTrade(tr)}
-                />
-                {tr}
-                <span className="ml-auto text-label-sm text-outline">
-                  {tradeCounts[tr] ?? 0}
-                </span>
-              </label>
-            ))}
+          <div className="flex items-center gap-1.5 mb-3.5 px-2.5 py-1.5 rounded border border-outline-variant bg-surface-container-low">
+            <Search size={13} className="text-outline shrink-0" />
+            <input
+              type="text"
+              placeholder="Search filters…"
+              value={filterSearch}
+              onChange={(e) => setFilterSearch(e.target.value)}
+              className="bg-transparent outline-none text-body-sm text-on-surface w-full placeholder:text-outline"
+            />
           </div>
 
-          <div className="pb-3.5 mb-3.5 border-b border-outline-variant">
-            <div className="text-label-sm uppercase text-on-surface-variant mb-2">
-              Status
+          {visibleTrades.length > 0 && (
+            <div className="pb-3.5 mb-3.5 border-b border-outline-variant">
+              <div className="text-label-sm uppercase text-on-surface-variant mb-2">
+                Trade
+              </div>
+              {visibleTrades.map((tr) => (
+                <label
+                  key={tr}
+                  className="flex items-center gap-2 text-body-sm text-on-surface py-1 cursor-pointer"
+                >
+                  <input
+                    type="checkbox"
+                    className="w-3.5 h-3.5 accent-primary-container"
+                    checked={trades.includes(tr)}
+                    onChange={() => toggleTrade(tr)}
+                  />
+                  {tr}
+                  <span className="ml-auto text-label-sm text-outline">
+                    {tradeCounts[tr] ?? 0}
+                  </span>
+                </label>
+              ))}
             </div>
-            {STATUSES.map((st) => (
-              <label
-                key={st}
-                className="flex items-center gap-2 text-body-sm text-on-surface py-1 cursor-pointer"
-              >
-                <input
-                  type="checkbox"
-                  className="w-3.5 h-3.5 accent-primary-container"
-                  checked={statuses.includes(st)}
-                  onChange={() => toggleStatus(st)}
-                />
-                {STATUS_LABELS[st]}
-              </label>
-            ))}
-          </div>
+          )}
 
-          <div>
-            <div className="text-label-sm uppercase text-on-surface-variant mb-2">
-              Compliance Documents
+          {visibleStatuses.length > 0 && (
+            <div className="pb-3.5 mb-3.5 border-b border-outline-variant">
+              <div className="text-label-sm uppercase text-on-surface-variant mb-2">
+                Status
+              </div>
+              {visibleStatuses.map((st) => (
+                <label
+                  key={st}
+                  className="flex items-center gap-2 text-body-sm text-on-surface py-1 cursor-pointer"
+                >
+                  <input
+                    type="checkbox"
+                    className="w-3.5 h-3.5 accent-primary-container"
+                    checked={statuses.includes(st)}
+                    onChange={() => toggleStatus(st)}
+                  />
+                  {STATUS_LABELS[st]}
+                </label>
+              ))}
             </div>
-            {DOC_OPTIONS.map(([val, label]) => (
-              <label
-                key={val || "all"}
-                className="flex items-center gap-2 text-body-sm text-on-surface py-1 cursor-pointer"
-              >
-                <input
-                  type="radio"
-                  name="docFilter"
-                  className="w-3.5 h-3.5 accent-primary-container"
-                  checked={docFilter === val}
-                  onChange={() => setDocFilter(val)}
-                />
-                {label}
-              </label>
-            ))}
-          </div>
+          )}
+
+          {visibleDocs.length > 0 && (
+            <div>
+              <div className="text-label-sm uppercase text-on-surface-variant mb-2">
+                Compliance Documents
+              </div>
+              {visibleDocs.map(([val, label]) => (
+                <label
+                  key={val || "all"}
+                  className="flex items-center gap-2 text-body-sm text-on-surface py-1 cursor-pointer"
+                >
+                  <input
+                    type="radio"
+                    name="docFilter"
+                    className="w-3.5 h-3.5 accent-primary-container"
+                    checked={docFilter === val}
+                    onChange={() => setDocFilter(val)}
+                  />
+                  {label}
+                </label>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="flex-1 min-w-0">

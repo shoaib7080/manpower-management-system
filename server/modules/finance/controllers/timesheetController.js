@@ -37,10 +37,43 @@ export const getTimesheet = async (req, res, next) => {
     const monthStart = new Date(year, month - 1, 1);
     const monthEnd = new Date(year, month, 0, 23, 59, 59);
 
-    const logs = await AuditLog.find({
-      newSite: jobOrder.siteName,
+    // Collect employee IDs and external worker names assigned to this job order's slots
+    const assignedEmployeeIds = jobOrder.slots
+      .filter((s) => s.assignedEmployee)
+      .map((s) => s.assignedEmployee.toString());
+
+    const externalWorkerNames = jobOrder.slots
+      .filter((s) => s.externalWorker?.name)
+      .map((s) => s.externalWorker.name);
+
+    // Try scoped query first (new logs with jobOrderId set),
+    // fall back to matching by the actual assigned employees/workers on this job order
+    let logs = await AuditLog.find({
+      jobOrderId,
       newStatus: { $in: ["RESERVED", "BOOKED", "MOBILIZED"] },
     });
+
+    if (logs.length === 0) {
+      const orClauses = [];
+      if (assignedEmployeeIds.length)
+        orClauses.push({ employeeId: { $in: assignedEmployeeIds } });
+      if (externalWorkerNames.length) {
+        orClauses.push({
+          employeeId: null,
+          newSite: jobOrder.siteName,
+          employeeName: {
+            $in: externalWorkerNames.map((n) => new RegExp(`^${n}`)),
+          },
+        });
+      }
+
+      if (orClauses.length) {
+        logs = await AuditLog.find({
+          $or: orClauses,
+          newStatus: { $in: ["RESERVED", "BOOKED", "MOBILIZED"] },
+        });
+      }
+    }
 
     const recordMap = new Map();
 

@@ -85,6 +85,8 @@ export default function TimesheetsPage() {
   const [search, setSearch] = useState("");
   const [activeEmpIdx, setActiveEmpIdx] = useState(null); // which employee's modal is open
 
+  const [standardHoursInput, setStandardHoursInput] = useState("8");
+
   const { data: jobOrders = [] } = useQuery({
     queryKey: ["jobOrders", "simple-list"],
     queryFn: () => fetchJobOrders().then((r) => r.data.jobOrders || r.data),
@@ -114,6 +116,7 @@ export default function TimesheetsPage() {
       // Forward-compatible: reads a real per-job-order constant once the
       // backend supports it; falls back to 8 until then.
       setStandardHoursPerDay(serverData.standardHoursPerDay || 8);
+      setStandardHoursInput(String(serverData.standardHoursPerDay || 8));
       setIsModified(false);
 
       const daysInMonth = getDaysInMonth(selectedMonth, selectedYear);
@@ -138,6 +141,7 @@ export default function TimesheetsPage() {
       setStatus("DRAFT");
       setApproverName("");
       setStandardHoursPerDay(8);
+      setStandardHoursInput("8");
       setIsModified(false);
     }
   }, [serverData, selectedMonth, selectedYear]);
@@ -445,8 +449,12 @@ export default function TimesheetsPage() {
             step="0.5"
             disabled={status === "APPROVED" || !selectedJobId}
             className={inputCls}
-            value={standardHoursPerDay}
-            onChange={(e) => handleStandardHoursChange(e.target.value)}
+            value={standardHoursInput}
+            onChange={(e) => setStandardHoursInput(e.target.value)}
+            onBlur={(e) => handleStandardHoursChange(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") e.currentTarget.blur();
+            }}
           />
         </div>
         <div className="text-label-sm text-on-surface-variant pb-2 max-w-[220px]">

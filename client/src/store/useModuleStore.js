@@ -1,12 +1,19 @@
-import { create } from 'zustand';
+import { create } from "zustand";
+import { MODULES } from "../config/modules.config";
 
-/**
- * Tracks the currently active ERP module across Topbar and Sidebar.
- * This is UI state — intentionally separate from AuthContext so module
- * switches don't re-render the entire auth tree.
- */
+function moduleFromPath(pathname) {
+  // Walk modules in reverse so more-specific prefixes (e.g. /finance) win over /
+  const sorted = [...MODULES].sort(
+    (a, b) => b.rootRoute.length - a.rootRoute.length,
+  );
+  const match = sorted.find((m) =>
+    m.rootRoute === "/" ? pathname === "/" : pathname.startsWith(m.rootRoute),
+  );
+  return match?.id ?? "operations";
+}
+
 const useModuleStore = create((set) => ({
-  activeModule: 'operations', // default on login
+  activeModule: moduleFromPath(window.location.pathname),
   setModule: (moduleId) => set({ activeModule: moduleId }),
 }));
 

@@ -410,6 +410,7 @@ export const updateSlotPipeline = async (req, res, next) => {
       const extWorkerLabel = `${slot.externalWorker.name}${slot.externalWorker.company ? ` (${slot.externalWorker.company})` : " (Subcontractor)"}`;
 
       const auditEntry = new AuditLog({
+        jobOrderId: jobOrder._id,
         employeeId: null,
         employeeName: extWorkerLabel,
         previousStatus: prevStatus,
@@ -465,6 +466,7 @@ export const updateSlotPipeline = async (req, res, next) => {
 
     // Commit Audit Trail
     const auditEntry = new AuditLog({
+      jobOrderId: jobOrder._id,
       employeeId: employee._id,
       employeeName: employee.name,
       previousStatus: currentStatus,
@@ -558,6 +560,7 @@ export const assignEmployeeToSlot = async (req, res, next) => {
       const extWorkerLabel = `${externalWorker.name.trim()}${externalWorker.company ? ` (${externalWorker.company.trim()})` : " (Subcontractor)"}`;
 
       const auditEntry = new AuditLog({
+        jobOrderId: jobOrder._id,
         employeeId: null,
         employeeName: extWorkerLabel,
         previousStatus: "UNASSIGNED",
@@ -642,6 +645,7 @@ export const assignEmployeeToSlot = async (req, res, next) => {
 
     // 5. Commit Mandatory Audit Log
     const auditEntry = new AuditLog({
+      jobOrderId: jobOrder._id,
       employeeId: employee._id,
       employeeName: employee.name,
       previousStatus: previousStatus,
@@ -717,6 +721,7 @@ export const releaseEmployeeFromSlot = async (req, res, next) => {
       slot.demobDate = null;
 
       const auditEntry = new AuditLog({
+        jobOrderId: jobOrder._id,
         employeeId: null,
         employeeName: extWorkerLabel,
         previousStatus: prevStatus,
@@ -769,6 +774,7 @@ export const releaseEmployeeFromSlot = async (req, res, next) => {
 
       // Audit entry
       const auditEntry = new AuditLog({
+        jobOrderId: jobOrder._id,
         employeeId: employee._id,
         employeeName: employee.name,
         previousStatus: previousStatus,
